@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design to Cost Studio</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="dot"></span>Design to Cost <small>Presentation &amp; Video Studio</small></div>
+  <div class="top-actions">
+    <select id="projectSelect" aria-label="Project"></select>
+    <button id="newProject" class="btn ghost">+ New</button>
+    <button id="phoneBtn" class="btn ghost" title="Open on your phone">📱 Phone</button>
+  </div>
+</header>
+
+<div id="phonePanel" class="phone hidden">
+  <div>
+    <b>Open on your phone</b> (same Wi-Fi):<br><a id="phoneUrl" href="#"></a>
+    <p class="muted">If the phone cannot connect, allow “Python” in the Windows Firewall pop-up (Private networks).</p>
+  </div>
+  <div id="qr" class="qr"></div>
+</div>
+
+<main id="app" class="hidden">
+  <section class="card">
+    <h2><span class="step">1</span> Project details</h2>
+    <div class="grid">
+      <label>Presentation title<input data-field="title"></label>
+      <label>Subtitle<input data-field="subtitle"></label>
+      <label>Presenter name<input data-field="presenter"></label>
+      <label>Company<input data-field="company"></label>
+      <label>Contact (email / web)<input data-field="contact"></label>
+      <div class="logo-box">
+        <span>Logo</span>
+        <img id="logoImg" alt="logo">
+        <div class="row">
+          <label class="btn small">Upload logo<input type="file" id="logoFile" accept="image/*" hidden></label>
+          <button class="btn small ghost" id="logoReset">Use placeholder</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="step">2</span> Slides <small class="muted" id="slideCount"></small></h2>
+    <div class="row wrap">
+      <label class="btn">📷 Add screenshots<input type="file" id="shotFiles" accept="image/*" multiple hidden></label>
+      <label class="btn ghost">📂 Import existing PPTX<input type="file" id="pptxFile" accept=".pptx" hidden></label>
+      <button class="btn ghost" id="addText">＋ Text-only slide</button>
+    </div>
+    <p class="muted">Tip: name files <code>01_cost-summary.png</code>, <code>02_bom.png</code>… — they are added in that order and the name becomes the slide title. Write your notes per screen; one line = one bullet.</p>
+    <div id="slides"></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="step">3</span> Narration &amp; voice</h2>
+    <div class="row wrap">
+      <button class="btn" id="draftScript">✍️ Write narration for empty slides</button>
+      <button class="btn ghost" id="redraftScript">Rewrite all from notes</button>
+      <a class="btn ghost" id="scriptTxt" href="#">⬇ Script (.txt)</a>
+    </div>
+    <div class="grid">
+      <label>Voice engine<select id="engine"></select></label>
+      <label>Language<select id="lang"></select></label>
+      <label>Voice<select id="voice"></select></label>
+      <label>Speed <b id="speedVal"></b><input type="range" id="speed" min="0.75" max="1.25" step="0.05"></label>
+    </div>
+    <div class="row wrap">
+      <button class="btn ghost" id="previewVoice">▶ Preview voice</button>
+      <audio id="previewAudio" controls class="hidden"></audio>
+    </div>
+    <p class="muted" id="engineInfo"></p>
+  </section>
+
+  <section class="card">
+    <h2><span class="step">4</span> Background music <small class="muted">(optional)</small></h2>
+    <div class="row wrap">
+      <label class="btn ghost">🎵 Choose music file<input type="file" id="musicFile" accept="audio/*" hidden></label>
+      <button class="btn small ghost" id="musicClear">Remove</button>
+      <span id="musicName" class="muted"></span>
+    </div>
+    <label>Music volume <b id="musicVolVal"></b><input type="range" id="musicVol" min="0" max="0.4" step="0.02"></label>
+    <p class="muted">Use only music you own or that is royalty-free for commercial use (e.g. CC0). It ducks automatically under the voice.</p>
+  </section>
+
+  <section class="card">
+    <h2><span class="step">5</span> Build</h2>
+    <div id="estimate" class="estimate"></div>
+    <div class="row wrap">
+      <button class="btn" id="buildPptx">📊 Build PowerPoint</button>
+      <button class="btn orange" id="renderVideo">🎬 Render video (MP4)</button>
+      <button class="btn ghost hidden" id="cancelRender">Cancel</button>
+    </div>
+    <div id="progress" class="progress hidden">
+      <div class="bar"><div id="barFill"></div></div>
+      <div id="progressText" class="muted"></div>
+    </div>
+    <div id="results" class="results"></div>
+  </section>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

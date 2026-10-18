@@ -1,0 +1,2 @@
+# Extra languages through Piper voices (GPL-3.0 engine; each voice has its own licence).
+piper-tts>=1.2
