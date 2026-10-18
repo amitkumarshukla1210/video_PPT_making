@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+projects/*
+!projects/.gitkeep
+models/kokoro/*
+models/piper/*
+!models/kokoro/.gitkeep
+!models/piper/.gitkeep
+*.part
