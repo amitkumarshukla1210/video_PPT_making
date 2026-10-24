@@ -1,0 +1,3 @@
+# Voice clone (installed into .venv-clone by: setup_windows.bat clone)
+# Chatterbox Multilingual by Resemble AI — MIT licence (code and weights), 23 languages.
+chatterbox-tts==0.1.7

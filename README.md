@@ -1,14 +1,16 @@
 # Design to Cost — Presentation & Video Studio
 
-A free, open-source app that runs **offline on your Windows laptop**. It turns screenshots and notes (or an existing PowerPoint) into:
+A free, open-source app for **Design to Cost** that runs **offline on your Windows laptop**. It turns screenshots and notes (or an existing PowerPoint) into:
 
-- a **branded PowerPoint** (navy `#152238`, blue `#1f5fa8`, orange `#e07b1f`, Segoe UI, logo slot), with the narration in the speaker notes
+- a **branded PowerPoint** in the Design to Cost theme (navy `#152238`, blue `#1f5fa8`, orange `#e07b1f`, Segoe UI, DC logo), with the narration in the speaker notes
 - an **editable narration script** for each slide
-- a **voice-over video (MP4)** with subtitles (`.srt`) and optional background music
+- a **presentation video (MP4, max 15 minutes)** with:
+  - a voice-over in a stock voice **or your own cloned voice**
+  - **you in the corner** explaining the slides, from a phone or webcam recording, or your photo
+  - a logo intro and outro, subtitles (`.srt`) and optional music
+- **social formats**: Instagram Reels / Shorts 9:16, square 1:1, and short clips of selected slides
 
-Everything runs on the laptop. You can use it from the laptop's browser or from your **phone's browser over home Wi-Fi**.
-
-> **Status: Stage 1 of 5 is done.** The presenter avatar, office backgrounds, cinematic effects and social-media formats are planned for later stages. See the [Plan](#the-plan-5-stages).
+You can use it from the laptop's browser or from your **phone's browser over home Wi-Fi**. Heavy work always runs on the laptop.
 
 ---
 
@@ -18,29 +20,30 @@ You only do steps 1–3 once.
 
 1. **Install Python** (free) from <https://www.python.org/downloads/>. Choose version 3.11, 3.12 or 3.13.
    During installation, **tick "Add python.exe to PATH"**.
-2. **Download this app.**
-   - On the GitHub page of this repository, click the green **Code** button, then **Download ZIP**.
-   - Unzip it to a simple folder, for example `C:\DTC-Studio`.
-3. **Double-click `setup_windows.bat`.** It needs the internet **once** (about 10 minutes, roughly 500 MB). It installs the open-source packages into a private folder (`.venv`) and downloads the Kokoro voice model.
-   Optional extras (run from a Command Prompt in that folder):
-   - `setup_windows.bat gpu`: lets the voice model use your graphics card (NVIDIA, AMD or Intel).
-   - `setup_windows.bat small`: smaller, faster voice model for older laptops.
-   - `setup_windows.bat piper`: extra languages through Piper voices.
+2. **Download this app.** On the GitHub page, click the green **Code** button, then **Download ZIP**. Unzip it to a simple folder, for example `C:\DTC-Studio`.
+3. **Double-click `setup_windows.bat`.** It needs the internet **once** (about 10 minutes, roughly 500 MB) and downloads the Kokoro voices.
+   Optional extras: open a Command Prompt in that folder and type one of these. You can combine them, e.g. `setup_windows.bat clone gpu`.
+
+   | Command | What it adds |
+   |---|---|
+   | `setup_windows.bat clone` | **Voice clone**, so the app can speak in *your* voice. About 3 GB extra. |
+   | `setup_windows.bat gpu` | Uses your graphics card for the voices (NVIDIA, AMD or Intel). |
+   | `setup_windows.bat small` | Smaller, faster voice model for older laptops. |
+   | `setup_windows.bat piper` | Extra languages through Piper voices. |
 4. **Double-click `start_windows.bat`.** A black window opens; keep it open while you use the app. Your browser opens at `http://localhost:8000`.
-5. **On your phone:** connect to the same Wi-Fi, click **📱 Phone** in the app and scan the QR code. You can also type the address shown in the black window, for example `http://192.168.1.20:8000`.
-   If Windows Firewall asks about Python, allow it on **Private networks**.
+5. **On your phone:** connect to the same Wi-Fi, click **📱 Phone** in the app and scan the QR code. If Windows Firewall asks about Python, allow it on **Private networks**.
 
-After setup you can switch off the internet. The app works fully offline.
+After setup you can switch off the internet. Everything works offline.
 
-## How to use it (5 steps on one page)
+## How to use it
 
 | Step | What you do |
 |---|---|
-| 1. Project details | Enter the title, subtitle, your name, company and contact. **Upload your logo**; until then a "YOUR LOGO" placeholder is used. In PowerPoint you can also right-click the logo and choose *Change Picture*. |
-| 2. Slides | Click **Add screenshots** (you can select many at once), or **Import existing PPTX**. Name files `01_cost-summary.png`, `02_bom.png` and so on: they are added in that order and the file name becomes the slide title. Type notes for each screen; **one line becomes one bullet**. Use ↑ ↓ to reorder. |
-| 3. Narration & voice | Click **Write narration**. The app drafts what the voice will say from your notes. **Edit the text freely.** Then pick the engine, language, voice (male/female) and speed, and click ▶ to hear it. |
-| 4. Music (optional) | Choose a music file. It is lowered automatically while the voice speaks. |
-| 5. Build | You see the **estimated video length and render time**. Click **Build PowerPoint** and/or **Render video**, then download the `.pptx`, `.mp4`, `.srt` and script. |
+| **1. Project details** | Enter the title, subtitle, your name, company and contact. The **Design to Cost logo** is used by default; you can upload another logo per project. |
+| **2. Slides** | Click **Add screenshots** (many at once), or **Import existing PPTX**. Name files `01_cost-summary.png`, `02_bom.png` and so on: they are added in that order and the name becomes the title. One line of notes becomes one bullet.<br>**Explain a slide yourself:**<br>• On the **laptop**: **🎥 Record** uses the webcam and shows the narration as a teleprompter.<br>• On the **phone**: **📱 Phone camera / file** opens the front camera.<br>Your video appears in the corner of that slide, and **your real voice** is used. |
+| **3. Narration & voice** | **Write narration** drafts the text from your notes; edit it freely. Pick an engine, language, gender, voice and speed, and click ▶ to hear it.<br>**Voice clone:** tick the consent box, then record or upload 10–30 s of yourself reading the suggested text. Choose **"My cloned voice"** as the engine. |
+| **4. Presenter** | Optional **photo** for slides you didn't record. Choose the corner (bottom-right / top-right), shape (circle / rounded) and size. |
+| **5. Build** | Music (auto-ducks under the voice) and logo intro/outro on/off. The **length meter** shows minutes used out of **15:00**, plus the **estimated render time** for your laptop. Then **Build PowerPoint** and **Render video**.<br>Under **Social formats & short clips**, pick Reels 9:16, square 1:1 or YouTube 16:9, optionally a slide range (e.g. slides 3–4 = a short clip), and subtitles burned into the picture. |
 
 Your work is saved automatically in `projects\<project-name>\`.
 
@@ -48,23 +51,25 @@ Your work is saved automatically in `projects\<project-name>\`.
 
 ## Tool choice per requirement
 
-I chose tools whose **licence allows commercial use**, such as a monetised YouTube channel. Where an option is popular but **not** allowed commercially, it is listed under *Avoided* so you don't pick it by mistake.
+I chose tools whose **licence allows commercial use**, such as a monetised YouTube channel. "Runs on CPU" means it works without a graphics card.
 
-"Runs on CPU" means it works without a graphics card. "Status" says how well the requirement can be met with free offline tools.
-
-| # | Requirement | Tool / model chosen | Licence | Commercial use (monetised YouTube)? | Runs on CPU? | Status |
+| # | Requirement | Tool / model | Licence | Commercial use (monetised YouTube)? | Runs on CPU? | Status |
 |---|---|---|---|---|---|---|
-| 1a | Screenshots + notes → branded .pptx, logo slot | **python-pptx** + **Pillow** | MIT / MIT-CMU (HPND) | ✅ Yes | ✅ Yes | ✅ **Fully met** (Stage 1) |
-| 1b | Import an existing PPT | **python-pptx** (titles, text, pictures, notes) → rebuilt in your brand | MIT | ✅ Yes | ✅ Yes | 🟡 **Partly met**: content and pictures are imported and re-branded, not copied pixel-for-pixel. Stage 2 adds exact slide images via **LibreOffice** (MPL-2.0). Save `.ppt` as `.pptx` first. |
-| 1c | Editable narration per slide | Built-in offline script writer (Stage 1). Stage 2: optional local AI rewrite with **Ollama** + **Qwen2.5-7B-Instruct** or **Phi-4-mini** | Ollama MIT; Qwen2.5-7B Apache-2.0; Phi-4-mini MIT | ✅ Yes | ✅ Yes (the AI rewrite takes about 10–40 s per slide on CPU) | ✅ **Fully met**: drafted from notes, fully editable, saved in the PPT notes and as `.txt` |
-| 2a | Offline voice-over, male + female, corporate tone | **Kokoro-82M** via kokoro-onnx | Weights Apache-2.0; kokoro-onnx MIT | ✅ Yes | ✅ Yes (around real time on a 4-core laptop) | ✅ **Fully met** for English (US/UK), Hindi, Spanish, French, Italian and Portuguese |
-| 2b | Many world languages | **Piper** voices (German, Arabic, Russian, Chinese and 40+ more); **eSpeak NG** as a basic fallback | Piper engine GPL-3.0 (piper1-gpl), **licence differs per voice**; eSpeak NG GPL-3.0 | 🟡 Engine yes. **Check each Piper voice's licence** (most are CC0/CC-BY/MIT, a few are non-commercial). Audio you create with a GPL program is yours. | ✅ Yes | 🟡 **Partly met**: quality varies by language. Stage 2 adds offline translation with **Argos Translate** (MIT; check each language model's licence). |
-| 3 | Talking-head avatar from one photo, lip-synced, in a corner | Stage 3: **SadTalker**; **MuseTalk** as the GPU option; **rembg**/**MediaPipe** to cut out the person | SadTalker Apache-2.0; MuseTalk MIT; rembg MIT; MediaPipe Apache-2.0 | 🟡 Code yes. **Verify each downloaded weight file** (some face-helper models in this field are research-only). | ⚠️ Technically yes, but **very slow**: a 30-minute video could take many hours on CPU. An NVIDIA GPU (6 GB+) is recommended. | 🟡 **Partly met**: realistic "talking photo" with head motion, not a full studio presenter. CPU-only users get an option to animate the avatar only on the intro and outro. |
-| 4 | Office backgrounds (boardroom, modern office, stage), presenter in front, slides on a screen or side panel | Stage 3: built-in backgrounds drawn by the app (no licence issues) + your own photos; optional one-time generation with **Stable Diffusion XL 1.0**; layout composited with **FFmpeg** | App: MIT; SDXL 1.0: CreativeML Open RAIL++-M | ✅ Yes (RAIL++ allows commercial use with use-based restrictions) | ✅ Compositing yes; generating a background takes about 5–15 min on CPU, done once | ✅ **Fully met** as still backgrounds. Moving 3-D sets are not possible offline at this quality. |
-| 5a | Transitions, intro/outro with logo, music, subtitles (.srt), up to ~30 min | **FFmpeg** (fade/xfade, sidechain ducking, mov_text); later **faster-whisper** for word-accurate subtitle timing | FFmpeg LGPL/GPL (used as a separate program); faster-whisper MIT; Whisper weights MIT | ✅ Yes | ✅ Yes | ✅ **Stage 1:** dip-to-navy transitions, `.srt` + embedded subtitles, music with auto-ducking, 30-minute videos. **Stage 4:** cinematic crossfades, zoom on screenshots, animated logo intro/outro, burned-in subtitles. |
-| 5b | Export presets: YouTube 16:9 1080p, Reels 9:16, square 1:1, short clips | **FFmpeg** scaling/cropping + app-made vertical and square layouts | as above | ✅ Yes | ✅ Yes | ✅ **Stage 1:** YouTube 16:9 1080p. **Stage 4:** 9:16, 1:1 and per-slide short clips. |
-| 6 | One simple UI, localhost + phone over Wi-Fi, rendering on the laptop | **Flask** + **waitress** + plain HTML/JS | BSD-3 / ZPL-2.1 | ✅ Yes | ✅ Yes | ✅ **Fully met** (Stage 1) |
-| 7 | Normal laptop: GPU if available, CPU fallback, render-time estimate | **FFmpeg** encoder auto-detect (NVIDIA NVENC → Intel QSV → AMD AMF → CPU x264); **onnxruntime** CUDA/DirectML for voice | FFmpeg as above; onnxruntime MIT; onnxruntime-directml MIT | ✅ Yes | ✅ Yes | ✅ **Fully met** (Stage 1). The estimate is measured on *your* laptop with a quick benchmark. |
+| 0 | Design to Cost theme + logo everywhere | `dtc-theme.css`, DC logo redrawn at high resolution | yours | ✅ | ✅ | ✅ **Done**: app header, favicon, slides, video intro/outro |
+| 1a | Screenshots + notes → branded .pptx | **python-pptx** + **Pillow** | MIT / MIT-CMU | ✅ | ✅ | ✅ **Done** |
+| 1b | Import an existing PPT | **python-pptx** (titles, text, pictures, notes → re-branded) | MIT | ✅ | ✅ | 🟡 **Partly**: content is re-branded, not copied pixel-for-pixel. Save `.ppt` as `.pptx` first. |
+| 1c | Editable narration per slide | Built-in offline script writer (EN, HI) | MIT | ✅ | ✅ | ✅ **Done** |
+| 2 | **Video max 15 min** | Length meter + check before and during rendering | — | — | ✅ | ✅ **Done** |
+| 3a | Voice-over, voice selection (male/female, language, speed) | **Kokoro-82M** | Apache-2.0 | ✅ | ✅ about real time | ✅ **Done** for EN US/UK, Hindi, ES, FR, IT, PT |
+| 3b | More languages | **Piper**; **eSpeak NG** as backup | GPL-3.0 engines; **licence differs per Piper voice** | 🟡 check each voice | ✅ | 🟡 **Partly**: quality varies by language |
+| 3c | **Voice clone** (your own voice) | **Chatterbox Multilingual** (Resemble AI), 23 languages incl. Hindi | MIT (code + weights) | ✅ Yes, for your own voice or with written permission. Output carries an inaudible AI watermark. | ⚠️ Works but slow: roughly 3–5 s of compute per second of speech on CPU. 15 min of speech ≈ 45–75 min. An NVIDIA GPU is about 8× faster. | ✅ **Done** (code tested with a stand-in model; see *Testing*) |
+| 4 | **Your video in the corner explaining the slides** | Recording in the browser (MediaRecorder) or phone camera, combined with **FFmpeg** | LGPL/GPL (separate program) | ✅ | ✅ ~3× slower than a plain slide | ✅ **Done**: your real face and real voice |
+| 4b | Presenter from one photo | Photo in the corner bubble | — | ✅ | ✅ | ✅ **Done** without lip movement. AI lip-sync (SadTalker, Apache-2.0) is **not included**: on CPU it needs hours for 15 min, and some of its helper models have research-only licences. Your own recording (row 4) gives a better result. |
+| 5 | Office backgrounds (boardroom, stage) | — | — | — | — | ⏸ **Not built**: your own recording already shows your real background. A virtual background would need person-cutout (rembg MIT / MediaPipe Apache-2.0) and is slow on CPU. |
+| 6 | Transitions, logo intro/outro, music, subtitles | **FFmpeg** (fades, zoom, sidechain ducking, mov_text, libass) | LGPL/GPL | ✅ | ✅ | ✅ **Done**: dip-to-navy transitions, animated logo intro + outro, `.srt` + embedded subtitles, burned-in subtitles for Reels |
+| 7 | Export: YouTube 16:9, Reels 9:16, square 1:1, short clips | **FFmpeg** reframing (blurred fill) + cut by slide | LGPL/GPL | ✅ | ✅ | ✅ **Done** |
+| 8 | One simple UI, localhost + phone | **Flask** + **waitress** + plain HTML/JS | BSD-3 / ZPL-2.1 | ✅ | ✅ | ✅ **Done** |
+| 9 | GPU if available, CPU fallback, render-time estimate | FFmpeg NVENC / QSV / AMF auto-detect; onnxruntime CUDA/DirectML; PyTorch CUDA (clone) | MIT | ✅ | ✅ | ✅ **Done** |
 
 **Avoided because they don't allow commercial use:**
 - **Coqui XTTS-v2**: CPML, non-commercial.
@@ -74,43 +79,48 @@ I chose tools whose **licence allows commercial use**, such as a monetised YouTu
 - **SDXL-Turbo**: non-commercial licence.
 - **Meta NLLB** translation: CC-BY-NC.
 
-**Not open-source:** the Windows built-in voices (Microsoft David/Zira, Hindi Kalpana/Hemant) are offered only as a fallback. Check Microsoft's terms before monetising videos made with them.
+**Not open-source:** the Windows built-in voices are only a fallback; check Microsoft's terms before monetising.
 
-*Licences can change. Before publishing monetised videos, re-check the licence of each model file you download. This table is guidance, not legal advice.*
+*Licences can change. Re-check the licence of each model you download before publishing monetised videos. This table is guidance, not legal advice.*
 
 ---
 
-## The plan (5 stages)
+## Stages
 
 | Stage | What you get | Status |
 |---|---|---|
-| **1. Core** | Project structure; screenshots/notes or PPTX import → branded `.pptx` with logo slot; editable narration (EN/HI drafts); offline voice-over (Kokoro, Piper, eSpeak, Windows voices); MP4 1080p with dip-to-navy transitions; `.srt` + embedded subtitles; background music with ducking; render-time estimate; GPU/CPU auto-detect; localhost + phone UI with QR code | ✅ **Done** |
-| **2. Script & language** | Local AI rewrite in a corporate tone (Ollama, optional); offline translation to Hindi and other languages (Argos); exact slide images from imported PPTX (LibreOffice); pronunciation dictionary (e.g. "BOM" → "B-O-M", "EBITDA"); per-slide pause and voice settings | Planned |
-| **3. Presenter & backgrounds** | Upload one photo → lip-synced talking head (SadTalker); background removal; presenter in a corner or in front of a boardroom, modern office or conference-stage background, with slides on a screen or side panel; GPU check and avatar render-time estimate | Planned |
-| **4. Cinematic & formats** | Crossfade/slide/zoom transitions, Ken Burns zoom on screenshots, animated logo intro/outro, burned-in subtitles, word-accurate timing (faster-whisper); presets: YouTube 16:9 1080p, Reels 9:16, square 1:1, short clips per slide, thumbnail | Planned |
-| **5. Polish** | One-click Windows installer (no Python needed), render queue, resume after a crash, project backup (.zip) | Planned |
-
----
+| **1. Core** | Branded PPTX, editable narration, offline voice-over MP4, subtitles, music, local + phone UI, GPU detect, estimate | ✅ Done |
+| **2. Voice** | Voice selection with a gender filter, **voice clone** (Chatterbox, 23 languages), recording or upload of the voice sample with a consent check | ✅ Done |
+| **3. Presenter** | **Your recording in the corner** with a webcam teleprompter or phone camera, your real voice; photo presenter; position, shape and size options | ✅ Done |
+| **4. Cinematic & formats** | Animated logo intro/outro, 15-minute limit, Reels 9:16, square 1:1, short clips by slide range, burned-in subtitles | ✅ Done |
+| **5. Polish** | One-click installer without Python, local-AI script rewrite (Ollama), offline translation, exact rendering of imported PPTX, virtual office backgrounds, AI lip-sync on GPU | Ideas for later; tell me which matter most |
 
 ## Voices
 
 | Engine | Quality | Languages | Setup |
 |---|---|---|---|
-| **Kokoro** (default) | ★★★★★ natural | English US/UK, Hindi, Spanish, French, Italian, Portuguese; male + female | `setup_windows.bat` downloads it |
-| **Piper** | ★★★★ | 40+ languages | `setup_windows.bat piper`, or put any `*.onnx` + `*.onnx.json` voice from [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices) in `models\piper\` |
-| **Windows voices** | ★★★ | whatever Windows has installed | automatic on Windows (fallback) |
-| **eSpeak NG** | ★★ robotic | 100+ | optional: install from [espeak-ng releases](https://github.com/espeak-ng/espeak-ng/releases) |
+| **Kokoro** (default) | ★★★★★ natural | English US/UK, Hindi, Spanish, French, Italian, Portuguese; male + female | `setup_windows.bat` |
+| **My cloned voice** | ★★★★ your own voice | 23: English, Hindi, Arabic, German, French, Spanish, Chinese, Japanese, Russian… | `setup_windows.bat clone`, then record a sample in the app |
+| **Piper** | ★★★★ | 40+ | `setup_windows.bat piper` |
+| **Windows voices** | ★★★ | whatever Windows has | automatic (fallback) |
+| **eSpeak NG** | ★★ robotic | 100+ | optional install |
 
-Tips for a corporate sound:
-- Use speed 0.95–1.0×.
-- Write short sentences.
-- Spell out abbreviations the way you want them spoken. Example: "B O M" or "bill of materials".
+Tips for a good voice clone:
+- Record in a quiet room, 20 cm from the microphone.
+- Read 15–30 seconds at your normal presenting pace.
+- Use one sample per project, and re-record it if the voice sounds off.
 
-## Speed (what to expect)
+**Only clone your own voice, or a voice you have written permission for.**
 
-- **Voice, Kokoro on CPU:** around real time. 10 minutes of narration takes about 3–10 minutes, faster with `setup_windows.bat gpu`.
-- **Video encoding:** about 0.1× real time on a 4-core CPU, so a 30-minute video encodes in about 3–5 minutes. It is faster with an NVIDIA, Intel or AMD GPU, which the app detects automatically.
-- **Re-rendering:** voice-over is cached, so after small edits only the changed slides are spoken again.
+## Speed (what to expect on a normal 4-core laptop)
+
+| Work | Time |
+|---|---|
+| Kokoro voice | About real time (10 min of speech ≈ 3–10 min). |
+| Cloned voice on CPU | About 3–5× slower than real time; plan a coffee break for long videos. With an NVIDIA GPU it is about real time. |
+| Slides | Encoding takes about 0.1× real time, so a 15-minute video encodes in about 1.5–3 minutes. |
+| Slides with your recording | About 3× the time of a plain slide. |
+| Re-rendering | Voices and recordings are cached, so after small edits only changed slides are redone. |
 
 The app shows its estimate for **your** laptop before you render.
 
@@ -118,33 +128,32 @@ The app shows its estimate for **your** laptop before you render.
 
 ## GitHub in simple words
 
-- **Repository (repo):** the online folder that holds the app's files.
-- **Branch:** a separate copy where new work is made without touching the main version. Stage 1 was built on the branch `claude/gracious-fermat-vw5d1a`.
-- **Commit:** a saved snapshot of changes, with a short message.
-- **Pull request (PR):** a request to copy a branch's changes into the main version. You can read every change on the PR page (tab *Files changed*).
-- **Merge:** accepting the pull request. Click the green **Merge pull request** button on the PR page, then **Confirm merge**. After that, **Code → Download ZIP** on the main page gives you the newest version.
-- **Before merging:** you can test the branch. On the repo page, switch the branch drop-down (top left, says `main`) to `claude/gracious-fermat-vw5d1a`, then **Code → Download ZIP**.
+- **Repository (repo):** the online folder with the app's files.
+- **Branch:** a separate copy where new work is made. This work is on `claude/gracious-fermat-vw5d1a`.
+- **Commit:** a saved snapshot of changes with a short message.
+- **Pull request (PR):** a request to copy a branch's changes into the main version. Tab *Files changed* shows every change.
+- **Merge:** on the PR page click **Merge pull request**, then **Confirm merge**. After that, **Code → Download ZIP** on the main page gives the newest version.
+- **Testing before merging:** switch the branch drop-down (top left, says `main`) to `claude/gracious-fermat-vw5d1a`, then **Code → Download ZIP**.
 
 ## For developers
 
 ```
 app/
   main.py            web server + API (Flask, served by waitress on 0.0.0.0:8000)
-  config.py          brand colours, folders, video settings
-  layout.py          one slide layout shared by the PPTX builder and the video renderer
-  ppt_builder.py     branded .pptx (python-pptx); narration -> speaker notes
+  config.py          brand, folders, video settings, 15-minute limit
+  layout.py          slide layout shared by PPTX and video (+ presenter bubble positions)
+  ppt_builder.py     branded .pptx; narration -> speaker notes
   ppt_import.py      existing .pptx -> slides
-  slide_render.py    slides -> 1920x1080 PNG frames (Pillow)
+  slide_render.py    slides -> 1920x1080 PNG frames, presenter bubble
   script_writer.py   offline narration drafts (EN, HI)
-  tts/               kokoro / piper / sapi / espeak engines
-  video.py           voice-over, timeline, subtitles, FFmpeg encode + mux, estimate
+  media.py           recordings, voice samples and photos -> standard formats
+  tts/               kokoro / clone (+ clone_worker in .venv-clone) / piper / sapi / espeak
+  video.py           timeline, voice-over, presenter overlay, intro/outro, mux, exports, estimate
   ffmpeg_utils.py    FFmpeg discovery, GPU encoder detection, speed benchmark
-  jobs.py            background render with progress / cancel
-  templates/, static/  the one-page UI (plain HTML/CSS/JS, works on phones)
-scripts/download_models.py   one-time model download
-tests/test_pipeline.py       end-to-end test: screenshots -> PPTX -> MP4 + SRT
+  jobs.py            background render/export with progress and cancel
+  templates/, static/  one-page UI (Design to Cost theme, works on phones)
+scripts/             one-time model downloads
+tests/               end-to-end tests (python -m pytest -q tests)
 ```
 
-Run the tests with `python -m pytest -q tests`. They use whichever voice engine is installed.
-
-Security note: the app listens on your home network so your phone can reach it. Anyone on the same Wi-Fi could open it, so don't run it on public Wi-Fi. To keep it laptop-only, set `DTC_HOST=127.0.0.1`.
+Security note: the app listens on your home network so your phone can reach it. Don't run it on public Wi-Fi. To keep it laptop-only, set `DTC_HOST=127.0.0.1`.

@@ -3,105 +3,208 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Design to Cost Studio</title>
-<link rel="icon" href="data:,">
+<title>Design to Cost — Presentation &amp; Video Studio</title>
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="apple-touch-icon" href="/static/logo_hd.png">
+<link rel="stylesheet" href="/static/dtc-theme.css">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<header class="top">
-  <div class="brand"><span class="dot"></span>Design to Cost <small>Presentation &amp; Video Studio</small></div>
-  <div class="top-actions">
-    <select id="projectSelect" aria-label="Project"></select>
-    <button id="newProject" class="btn ghost">+ New</button>
-    <button id="phoneBtn" class="btn ghost" title="Open on your phone">📱 Phone</button>
+<header>
+  <div class="header-inner">
+    <a class="brand" href="/">
+      <img src="/static/logo.png" alt="Design to Cost logo">
+      <span class="brand-text"><span class="name">Design to Cost</span><span class="tagline">Presentation &amp; Video Studio</span></span>
+    </a>
+    <nav><ul>
+      <li><a href="#s-project">Project</a></li>
+      <li><a href="#s-slides">Slides</a></li>
+      <li><a href="#s-voice">Voice</a></li>
+      <li><a href="#s-presenter">Presenter</a></li>
+      <li><a href="#s-build">Build</a></li>
+    </ul></nav>
+    <div class="top-actions">
+      <select id="projectSelect" aria-label="Project"></select>
+      <button id="newProject" class="btn btn-outline">+ New</button>
+      <button id="phoneBtn" class="btn btn-outline" title="Open on your phone">📱 Phone</button>
+    </div>
+  </div>
+  <div id="phonePanel" class="phone hidden">
+    <div>
+      <b>Open on your phone</b> (same Wi-Fi): <a id="phoneUrl" href="#"></a>
+      <p class="muted">If the phone cannot connect, allow “Python” in the Windows Firewall pop-up (Private networks).
+        On the phone, “Record” opens the phone camera.</p>
+    </div>
+    <div id="qr" class="qr"></div>
   </div>
 </header>
 
-<div id="phonePanel" class="phone hidden">
-  <div>
-    <b>Open on your phone</b> (same Wi-Fi):<br><a id="phoneUrl" href="#"></a>
-    <p class="muted">If the phone cannot connect, allow “Python” in the Windows Firewall pop-up (Private networks).</p>
-  </div>
-  <div id="qr" class="qr"></div>
-</div>
+<main id="app" class="container hidden">
 
-<main id="app" class="hidden">
-  <section class="card">
-    <h2><span class="step">1</span> Project details</h2>
-    <div class="grid">
-      <label>Presentation title<input data-field="title"></label>
-      <label>Subtitle<input data-field="subtitle"></label>
-      <label>Presenter name<input data-field="presenter"></label>
-      <label>Company<input data-field="company"></label>
-      <label>Contact (email / web)<input data-field="contact"></label>
-      <div class="logo-box">
-        <span>Logo</span>
-        <img id="logoImg" alt="logo">
-        <div class="row">
-          <label class="btn small">Upload logo<input type="file" id="logoFile" accept="image/*" hidden></label>
-          <button class="btn small ghost" id="logoReset">Use placeholder</button>
+  <section id="s-project">
+    <div class="section-head"><div class="kicker">Step 1</div><h2>Project details</h2></div>
+    <div class="card">
+      <div class="grid">
+        <div><label>Presentation title</label><input data-field="title"></div>
+        <div><label>Subtitle</label><input data-field="subtitle"></div>
+        <div><label>Presenter name</label><input data-field="presenter"></div>
+        <div><label>Company</label><input data-field="company"></div>
+        <div><label>Contact (email / web)</label><input data-field="contact"></div>
+        <div class="logo-box">
+          <label>Logo on slides</label>
+          <img id="logoImg" alt="logo">
+          <div class="row">
+            <label class="btn btn-primary small">Upload logo<input type="file" id="logoFile" accept="image/*" hidden></label>
+            <button class="btn btn-outline small" id="logoReset">Use Design to Cost logo</button>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="card">
-    <h2><span class="step">2</span> Slides <small class="muted" id="slideCount"></small></h2>
-    <div class="row wrap">
-      <label class="btn">📷 Add screenshots<input type="file" id="shotFiles" accept="image/*" multiple hidden></label>
-      <label class="btn ghost">📂 Import existing PPTX<input type="file" id="pptxFile" accept=".pptx" hidden></label>
-      <button class="btn ghost" id="addText">＋ Text-only slide</button>
+  <section id="s-slides" class="bg-grey">
+    <div class="section-head"><div class="kicker">Step 2</div><h2>Slides <small id="slideCount"></small></h2>
+      <p>Add screenshots with notes, or import a PowerPoint. On any slide you can <b>record yourself</b> explaining it — your video appears in the corner and your own voice is used.</p></div>
+    <div class="card">
+      <div class="row wrap">
+        <label class="btn btn-primary">📷 Add screenshots<input type="file" id="shotFiles" accept="image/*" multiple hidden></label>
+        <label class="btn btn-outline">📂 Import existing PPTX<input type="file" id="pptxFile" accept=".pptx" hidden></label>
+        <button class="btn btn-outline" id="addText">＋ Text-only slide</button>
+      </div>
+      <p class="muted">Tip: name files <code>01_cost-summary.png</code>, <code>02_bom.png</code>… — they are added in that order and the name becomes the slide title. One line of notes = one bullet.</p>
+      <div id="slides"></div>
     </div>
-    <p class="muted">Tip: name files <code>01_cost-summary.png</code>, <code>02_bom.png</code>… — they are added in that order and the name becomes the slide title. Write your notes per screen; one line = one bullet.</p>
-    <div id="slides"></div>
   </section>
 
-  <section class="card">
-    <h2><span class="step">3</span> Narration &amp; voice</h2>
-    <div class="row wrap">
-      <button class="btn" id="draftScript">✍️ Write narration for empty slides</button>
-      <button class="btn ghost" id="redraftScript">Rewrite all from notes</button>
-      <a class="btn ghost" id="scriptTxt" href="#">⬇ Script (.txt)</a>
+  <section id="s-voice">
+    <div class="section-head"><div class="kicker">Step 3</div><h2>Narration &amp; voice</h2>
+      <p>Draft the narration, then choose a stock voice or your own cloned voice.</p></div>
+    <div class="card">
+      <h3>Narration script</h3>
+      <div class="row wrap">
+        <button class="btn btn-primary" id="draftScript">✍️ Write narration for empty slides</button>
+        <button class="btn btn-outline" id="redraftScript">Rewrite all from notes</button>
+        <a class="btn btn-outline" id="scriptTxt" href="#">⬇ Script (.txt)</a>
+      </div>
     </div>
-    <div class="grid">
-      <label>Voice engine<select id="engine"></select></label>
-      <label>Language<select id="lang"></select></label>
-      <label>Voice<select id="voice"></select></label>
-      <label>Speed <b id="speedVal"></b><input type="range" id="speed" min="0.75" max="1.25" step="0.05"></label>
+    <div class="card">
+      <h3>Voice selection</h3>
+      <div class="grid">
+        <div><label>Voice engine</label><select id="engine"></select></div>
+        <div><label>Language</label><select id="lang"></select></div>
+        <div><label>Gender</label><select id="gender"><option value="">All</option><option value="female">Female</option><option value="male">Male</option></select></div>
+        <div><label>Voice</label><select id="voice"></select></div>
+        <div><label>Speed <b id="speedVal"></b></label><input type="range" id="speed" min="0.75" max="1.25" step="0.05"></div>
+      </div>
+      <div class="row wrap">
+        <button class="btn btn-outline" id="previewVoice">▶ Preview voice</button>
+        <audio id="previewAudio" controls class="hidden"></audio>
+      </div>
+      <p class="muted" id="engineInfo"></p>
     </div>
-    <div class="row wrap">
-      <button class="btn ghost" id="previewVoice">▶ Preview voice</button>
-      <audio id="previewAudio" controls class="hidden"></audio>
+    <div class="card" id="cloneCard">
+      <h3>Voice clone — speak in your own voice</h3>
+      <p class="muted">Record or upload <b>10–30 seconds</b> of yourself reading clearly in a quiet room. The app then speaks any slide's narration in your voice, in 23 languages including Hindi. Everything stays on this laptop.</p>
+      <div class="read-this">Read this aloud: <i>“Design to Cost helps us control product cost from the very first design. In this video I will show how commodity prices, exchange rates and part costs come together, so every decision is made with the full cost in view.”</i></div>
+      <label class="check"><input type="checkbox" id="consent"> This is <b>my own voice</b> (or I have the speaker's written permission to clone it).</label>
+      <div class="row wrap">
+        <button class="btn btn-primary" id="recSample">🎙 Record sample</button>
+        <label class="btn btn-outline">⬆ Upload audio<input type="file" id="sampleFile" accept="audio/*,video/*" capture="user" hidden></label>
+        <button class="btn btn-outline small" id="sampleClear">Remove sample</button>
+      </div>
+      <div id="sampleInfo" class="muted"></div>
+      <audio id="sampleAudio" controls class="hidden"></audio>
+      <p class="muted" id="cloneStatus"></p>
     </div>
-    <p class="muted" id="engineInfo"></p>
   </section>
 
-  <section class="card">
-    <h2><span class="step">4</span> Background music <small class="muted">(optional)</small></h2>
-    <div class="row wrap">
-      <label class="btn ghost">🎵 Choose music file<input type="file" id="musicFile" accept="audio/*" hidden></label>
-      <button class="btn small ghost" id="musicClear">Remove</button>
-      <span id="musicName" class="muted"></span>
+  <section id="s-presenter" class="bg-grey">
+    <div class="section-head"><div class="kicker">Step 4</div><h2>Presenter in the corner</h2>
+      <p>Slides with <b>your recording</b> (Step 2) always show your video. For the other slides you can show your photo.</p></div>
+    <div class="card">
+      <div class="grid">
+        <div class="logo-box">
+          <label>Your photo (optional)</label>
+          <img id="pipPhoto" alt="presenter photo" class="round hidden">
+          <div class="row">
+            <label class="btn btn-primary small">Upload photo<input type="file" id="pipPhotoFile" accept="image/*" hidden></label>
+            <button class="btn btn-outline small" id="pipPhotoClear">Remove</button>
+          </div>
+        </div>
+        <div><label>Show photo on slides without a recording</label>
+          <select id="pipEnabled"><option value="1">Yes</option><option value="0">No</option></select></div>
+        <div><label>Position</label>
+          <select id="pipPosition"><option value="br">Bottom-right corner</option><option value="tr">Top-right corner</option></select></div>
+        <div><label>Shape</label>
+          <select id="pipShape"><option value="circle">Circle</option><option value="rounded">Rounded square</option></select></div>
+        <div><label>Size</label>
+          <select id="pipSize"><option value="s">Small</option><option value="m">Medium</option><option value="l">Large</option></select></div>
+      </div>
+      <p class="muted">A photo does not move its lips — for real lip movement, record yourself on the slide (phone or webcam). See README › Presenter for the optional AI talking-photo add-on.</p>
     </div>
-    <label>Music volume <b id="musicVolVal"></b><input type="range" id="musicVol" min="0" max="0.4" step="0.02"></label>
-    <p class="muted">Use only music you own or that is royalty-free for commercial use (e.g. CC0). It ducks automatically under the voice.</p>
   </section>
 
-  <section class="card">
-    <h2><span class="step">5</span> Build</h2>
-    <div id="estimate" class="estimate"></div>
-    <div class="row wrap">
-      <button class="btn" id="buildPptx">📊 Build PowerPoint</button>
-      <button class="btn orange" id="renderVideo">🎬 Render video (MP4)</button>
-      <button class="btn ghost hidden" id="cancelRender">Cancel</button>
+  <section id="s-build">
+    <div class="section-head"><div class="kicker">Step 5</div><h2>Build PowerPoint &amp; video</h2></div>
+    <div class="card">
+      <h3>Music &amp; intro</h3>
+      <div class="row wrap">
+        <label class="btn btn-outline">🎵 Choose music file<input type="file" id="musicFile" accept="audio/*" hidden></label>
+        <button class="btn btn-outline small" id="musicClear">Remove</button>
+        <span id="musicName" class="muted"></span>
+      </div>
+      <div class="grid">
+        <div><label>Music volume <b id="musicVolVal"></b></label><input type="range" id="musicVol" min="0" max="0.4" step="0.02"></div>
+        <div><label>Logo intro &amp; outro (3 s each)</label><select id="intro"><option value="1">On</option><option value="0">Off</option></select></div>
+      </div>
+      <p class="muted">Use only music you own or that is royalty-free for commercial use (e.g. CC0). It ducks automatically under the voice.</p>
     </div>
-    <div id="progress" class="progress hidden">
-      <div class="bar"><div id="barFill"></div></div>
-      <div id="progressText" class="muted"></div>
+    <div class="card">
+      <h3>Length &amp; render</h3>
+      <div class="meter"><div id="meterFill"></div></div>
+      <div id="estimate" class="estimate"></div>
+      <div class="row wrap">
+        <button class="btn btn-primary" id="buildPptx">📊 Build PowerPoint</button>
+        <button class="btn btn-primary accent" id="renderVideo">🎬 Render video (MP4)</button>
+        <button class="btn btn-outline hidden" id="cancelRender">Cancel</button>
+      </div>
+      <div id="progress" class="progress hidden">
+        <div class="bar"><div id="barFill"></div></div>
+        <div id="progressText" class="muted"></div>
+      </div>
+      <div id="results" class="results"></div>
     </div>
-    <div id="results" class="results"></div>
+    <div class="card">
+      <h3>Social formats &amp; short clips</h3>
+      <div class="grid">
+        <div><label>Format</label><select id="exPreset"></select></div>
+        <div><label>From slide (blank = whole video)</label><input id="exFrom" type="number" min="1" placeholder="e.g. 3"></div>
+        <div><label>To slide</label><input id="exTo" type="number" min="1" placeholder="e.g. 4"></div>
+        <div><label>Subtitles in the picture</label><select id="exSubs"><option value="1">Yes (best for Reels)</option><option value="0">No</option></select></div>
+      </div>
+      <div class="row wrap"><button class="btn btn-primary" id="exportBtn">⬇ Export</button></div>
+      <div id="exProgress" class="muted"></div>
+      <div id="exResults" class="results"></div>
+    </div>
   </section>
 </main>
+
+<footer><div class="footnote">© Design to Cost · Presentation &amp; Video Studio · runs offline on this laptop</div></footer>
+
+<div id="recModal" class="modal hidden">
+  <div class="modal-box">
+    <h3 id="recTitle">Record</h3>
+    <video id="recPreview" autoplay muted playsinline class="hidden"></video>
+    <div id="prompter" class="prompter"></div>
+    <div class="row wrap">
+      <button class="btn btn-primary" id="recStart">● Start</button>
+      <button class="btn btn-outline hidden" id="recStop">■ Stop</button>
+      <span id="recTimer" class="muted"></span>
+      <button class="btn btn-outline" id="recClose">Close</button>
+    </div>
+    <p class="muted">Look at the camera, read the text at a calm pace. The recording stays on this laptop.</p>
+  </div>
+</div>
 
 <div id="toast" class="toast hidden"></div>
 <script src="/static/app.js"></script>

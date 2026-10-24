@@ -108,9 +108,65 @@ def _bullets(canvas, box, lines, pt):
             y += size * 1.3
 
 
-def render_slide(proj, s, number, out_path):
+def bubble_mode(proj, s):
+    """'clip' = presenter's own recording, 'photo' = still photo, None = no presenter on this slide."""
+    pip = proj.get("pip") or {}
+    if s.get("clip") and (folder(proj["id"]) / s["clip"]).exists():
+        return "clip"
+    if pip.get("enabled") and pip.get("photo") and (folder(proj["id"]) / pip["photo"]).exists():
+        return "photo"
+    return None
+
+
+def bubble_mask(size_px, shape):
+    """White-on-black anti-aliased mask (circle or rounded square)."""
+    big = Image.new("L", (size_px * 4, size_px * 4), 0)
+    dd = ImageDraw.Draw(big)
+    if shape == "rounded":
+        dd.rounded_rectangle((0, 0, size_px * 4 - 1, size_px * 4 - 1), radius=int(size_px * 4 * 0.14), fill=255)
+    else:
+        dd.ellipse((0, 0, size_px * 4 - 1, size_px * 4 - 1), fill=255)
+    return big.resize((size_px, size_px), Image.LANCZOS)
+
+
+def _bubble_frame(canvas, box, shape, photo=None):
+    """Draw shadow + white ring; paste the photo if given. Returns the inner box in pixels."""
+    x, y, dia = box
+    x0, y0, size = int(x * PX), int(y * PX), int(dia * PX)
+    ring = max(int(L.PIP_RING * PX), 4)
+    sh = Image.new("RGBA", (size + 60, size + 60), (0, 0, 0, 0))
+    m = bubble_mask(size, shape)
+    sh.paste((21, 34, 56, 90), (30, 36), m)
+    canvas.alpha_composite(sh.filter(ImageFilter.GaussianBlur(12)), (x0 - 30, y0 - 30))
+    outer = Image.new("RGBA", (size, size), WHITE)
+    canvas.paste(outer, (x0, y0), m)
+    inner = size - 2 * ring
+    ix, iy = x0 + ring, y0 + ring
+    im = m.resize((inner, inner), Image.LANCZOS)
+    canvas.paste(Image.new("RGBA", (inner, inner), NAVY), (ix, iy), im)
+    if photo is not None:
+        with Image.open(photo) as ph:
+            canvas.paste(ph.convert("RGBA").resize((inner, inner), Image.LANCZOS), (ix, iy), im)
+    # thin blue outline for definition on white slides
+    big = Image.new("RGBA", (size * 2, size * 2), (0, 0, 0, 0))
+    bd = ImageDraw.Draw(big)
+    if shape == "rounded":
+        bd.rounded_rectangle((1, 1, size * 2 - 2, size * 2 - 2), radius=int(size * 2 * 0.14), outline=BLUE, width=3)
+    else:
+        bd.ellipse((1, 1, size * 2 - 2, size * 2 - 2), outline=BLUE, width=3)
+    canvas.alpha_composite(big.resize((size, size), Image.LANCZOS), (x0, y0))
+    return ix, iy, inner
+
+
+def render_slide(proj, s, number, out_path, mode=None):
+    """Draw one slide. mode: None / 'photo' / 'clip' (see bubble_mode).
+    Returns the presenter bubble's inner box (x, y, size) in pixels, or None."""
     base = folder(proj["id"])
     logo = logo_path(proj)
+    pip = proj.get("pip") or {}
+    shape = pip.get("shape", "circle")
+    photo = base / pip["photo"] if mode == "photo" else None
+    inner = None
     canvas = Image.new("RGBA", (VIDEO_W, VIDEO_H), WHITE)
     d = ImageDraw.Draw(canvas)
     if s["kind"] in ("title", "closing"):
@@ -118,11 +174,15 @@ def render_slide(proj, s, number, out_path):
         d.rectangle(_b(L.COVER_BAND), fill=BLUE)
         d.rectangle(_b(L.COVER_BAR), fill=ORANGE)
         _logo(canvas, logo, L.COVER_LOGO)
-        _text(d, L.COVER_TITLE, s["title"] or proj["title"], 44, WHITE, "bold", "bottom")
-        _text(d, L.COVER_SUB, s["notes"] or "", 22, "#bcd3f0")
+        boxes = (L.COVER_TITLE_PIP, L.COVER_SUB_PIP, L.COVER_META_PIP) if mode else \
+            (L.COVER_TITLE, L.COVER_SUB, L.COVER_META)
+        _text(d, boxes[0], s["title"] or proj["title"], 44, WHITE, "bold", "bottom")
+        _text(d, boxes[1], s["notes"] or "", 22, "#bcd3f0")
         meta = "  |  ".join(v for v in (proj.get("presenter"), proj.get("company"), proj.get("contact")) if v)
         if meta:
-            _text(d, L.COVER_META, meta, 16, WHITE)
+            _text(d, boxes[2], meta, 16, WHITE)
+        if mode:
+            inner = _bubble_frame(canvas, L.pip_box(s["kind"], pip), shape, photo)
     else:
         d.rectangle(_b(L.HEADER), fill=NAVY)
         d.rectangle(_b(L.ACCENT), fill=ORANGE)
@@ -130,16 +190,19 @@ def render_slide(proj, s, number, out_path):
         _logo(canvas, logo, L.HEADER_LOGO)
         lines = L.bullets(s["notes"])
         img = base / s["image"] if s.get("image") else None
-        if img and img.exists():
-            _paste_fit(canvas, img, L.SHOT_WITH_NOTES if lines else L.SHOT_FULL, border="#c9d3e0", shadow=True)
-            if lines:
-                _bullets(canvas, L.NOTES_PANEL, lines, L.bullet_font_pt(lines))
-        elif lines:
-            _bullets(canvas, L.NOTES_FULL, lines, L.bullet_font_pt(lines, full_width=True))
+        has_img = bool(img and img.exists())
+        boxes = L.content_boxes(has_img, bool(lines), pip if mode else None)
+        if has_img:
+            _paste_fit(canvas, img, boxes["shot"], border="#c9d3e0", shadow=True)
+        if lines and boxes["notes"]:
+            wide = boxes["notes"][2] > 5
+            _bullets(canvas, boxes["notes"], lines, L.bullet_font_pt(lines, full_width=wide))
+        if boxes["bubble"]:
+            inner = _bubble_frame(canvas, boxes["bubble"], shape, photo)
         footer = proj.get("title", "") + (f"  |  {proj['company']}" if proj.get("company") else "")
         _text(d, (0.5, L.FOOTER_Y, 9, 0.35), footer, 10, GREY)
         fnt = font("bold", 10 * PT)
         num = str(number)
         d.text((int(12.83 * PX) - d.textlength(num, font=fnt), int(L.FOOTER_Y * PX)), num, font=fnt, fill=BLUE)
     canvas.convert("RGB").save(out_path, "PNG", optimize=False)
-    return out_path
+    return inner

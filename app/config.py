@@ -5,7 +5,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PROJECTS_DIR = ROOT / "projects"
 MODELS_DIR = ROOT / "models"
-PLACEHOLDER_LOGO = ROOT / "app" / "static" / "logo_placeholder.png"   # replace via the UI
+DEFAULT_LOGO = ROOT / "app" / "static" / "logo_hd.png"   # Design to Cost logo; replace per project in the UI
+APP_NAME = "Design to Cost"
+MODULE_NAME = "Presentation & Video Studio"
+
+# Hugging Face models (voice clone) are kept inside the app folder, never sent anywhere.
+os.environ.setdefault("HF_HOME", str(MODELS_DIR / "hf"))
+os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
 
 HOST = os.environ.get("DTC_HOST", "0.0.0.0")  # 0.0.0.0 = reachable from phone on same Wi-Fi
 PORT = int(os.environ.get("DTC_PORT", "8000"))
@@ -19,8 +25,9 @@ LIGHT = "#eef3f9"
 GREY = "#5b6575"
 FONT_NAME = "Segoe UI"
 
-# Video (Stage 1: YouTube 16:9 1080p)
+# Video (master is YouTube 16:9 1080p; Reels / square are made from it)
 VIDEO_W, VIDEO_H, FPS = 1920, 1080, 30
+MAX_VIDEO_SECONDS = 15 * 60   # hard limit: 15 minutes
 AUDIO_RATE = 48000
 LEAD_IN = 0.6    # seconds of silence before narration on each slide
 TAIL_OUT = 0.9   # seconds after narration before the transition

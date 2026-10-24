@@ -9,3 +9,5 @@ models/piper/*
 !models/kokoro/.gitkeep
 !models/piper/.gitkeep
 *.part
+models/hf/
+.venv-clone/

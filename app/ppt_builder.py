@@ -9,7 +9,7 @@ from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.util import Inches, Pt
 
 from . import layout as L
-from .config import NAVY, BLUE, ORANGE, WHITE, LIGHT, GREY, FONT_NAME, PLACEHOLDER_LOGO
+from .config import NAVY, BLUE, ORANGE, WHITE, LIGHT, GREY, FONT_NAME, DEFAULT_LOGO
 from .project import folder
 
 
@@ -132,7 +132,7 @@ def logo_path(proj):
         p = folder(proj["id"]) / proj["logo"]
         if p.exists():
             return p
-    return PLACEHOLDER_LOGO
+    return DEFAULT_LOGO
 
 
 def build_pptx(proj, out_path=None):

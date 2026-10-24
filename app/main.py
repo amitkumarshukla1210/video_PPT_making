@@ -8,16 +8,17 @@ from pathlib import Path
 from flask import Flask, jsonify, request, send_from_directory, render_template, abort, Response
 from werkzeug.utils import secure_filename
 
-from . import jobs, project as P, tts
-from .config import HOST, PORT, ROOT
+from . import jobs, media, project as P, tts
+from .config import HOST, PORT, MAX_VIDEO_SECONDS, APP_NAME, MODULE_NAME
 from .ffmpeg_utils import best_encoder, ENCODERS
 from .ppt_builder import build_pptx
 from .ppt_import import import_pptx
 from .script_writer import draft_all, script_text
-from .video import render_video, estimate
+from .video import render_video, estimate, export, PRESETS
 
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
-AUDIO_EXT = {".mp3", ".wav", ".m4a", ".ogg", ".flac"}
+AUDIO_EXT = {".mp3", ".wav", ".m4a", ".ogg", ".flac", ".webm", ".aac", ".opus", ".mp4", ".3gp", ".amr"}
+VIDEO_EXT = {".mp4", ".mov", ".webm", ".mkv", ".m4v", ".3gp", ".avi"}
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 1024   # 1 GB uploads
@@ -72,7 +73,8 @@ def system():
     url = f"http://{lan_ip()}:{PORT}"
     qr = qrcode.make(url, image_factory=qrcode.image.svg.SvgPathImage).to_string(encoding="unicode")
     return jsonify(engines=tts.status(), default_engine=tts.default_engine(),
-                   encoder=ENCODERS[best_encoder()][0], phone_url=url, qr_svg=qr)
+                   encoder=ENCODERS[best_encoder()][0], phone_url=url, qr_svg=qr,
+                   max_seconds=MAX_VIDEO_SECONDS, presets={k: v[0] for k, v in PRESETS.items()})
 
 
 @app.get("/api/projects")
@@ -105,6 +107,19 @@ def update(pid):
         proj["voice"].update({k: body["voice"][k] for k in ("engine", "voice", "lang", "speed") if k in body["voice"]})
     if "music" in body and "volume" in body["music"]:
         proj["music"]["volume"] = float(body["music"]["volume"])
+    if "intro" in body:
+        proj["intro"] = bool(body["intro"])
+    if "pip" in body:
+        pip = proj.setdefault("pip", {"enabled": False, "photo": None, "position": "br", "shape": "circle", "size": "m"})
+        b = body["pip"]
+        if "enabled" in b:
+            pip["enabled"] = bool(b["enabled"])
+        if b.get("position") in ("br", "tr"):
+            pip["position"] = b["position"]
+        if b.get("shape") in ("circle", "rounded"):
+            pip["shape"] = b["shape"]
+        if b.get("size") in ("s", "m", "l"):
+            pip["size"] = b["size"]
     if "slides" in body:
         old = {s["id"]: s for s in proj["slides"]}
         new = []
@@ -145,6 +160,74 @@ def slide_image(pid, sid):
     proj = _proj(pid)
     s = next((s for s in proj["slides"] if s["id"] == sid), None) or abort(404)
     s["image"] = _save_upload(pid, request.files["file"], IMAGE_EXT, "shot")
+    P.save(proj)
+    return jsonify(proj)
+
+
+@app.post("/api/projects/<pid>/slides/<sid>/clip")
+def slide_clip(pid, sid):
+    """Your own recording for this slide (phone camera, webcam or a file)."""
+    proj = _proj(pid)
+    s = next((s for s in proj["slides"] if s["id"] == sid), None) or abort(404)
+    raw = _save_upload(pid, request.files["file"], VIDEO_EXT, "rec")
+    dst = f"uploads/clip_{sid}_{uuid.uuid4().hex[:4]}.mp4"
+    try:
+        secs = media.normalize_clip(P.folder(pid) / raw, P.folder(pid) / dst)
+    except Exception as e:
+        abort(400, str(e))
+    finally:
+        (P.folder(pid) / raw).unlink(missing_ok=True)
+    proj = _proj(pid)                      # re-read: the conversion may take a while
+    s = next((s for s in proj["slides"] if s["id"] == sid), None) or abort(404)
+    s["clip"], s["clip_seconds"] = dst, round(secs, 2)
+    P.save(proj)
+    return jsonify(proj)
+
+
+@app.delete("/api/projects/<pid>/slides/<sid>/clip")
+def slide_clip_delete(pid, sid):
+    proj = _proj(pid)
+    s = next((s for s in proj["slides"] if s["id"] == sid), None) or abort(404)
+    s["clip"], s["clip_seconds"] = None, 0
+    P.save(proj)
+    return jsonify(proj)
+
+
+@app.post("/api/projects/<pid>/pip_photo")
+def pip_photo(pid):
+    proj = _proj(pid)
+    if "file" not in request.files:
+        proj.setdefault("pip", {})["photo"] = None
+    else:
+        raw = _save_upload(pid, request.files["file"], IMAGE_EXT, "me")
+        dst = f"uploads/presenter_{uuid.uuid4().hex[:4]}.jpg"
+        media.normalize_photo(P.folder(pid) / raw, P.folder(pid) / dst)
+        pip = proj.setdefault("pip", {"position": "br", "shape": "circle", "size": "m"})
+        pip["photo"], pip["enabled"] = dst, True
+    P.save(proj)
+    return jsonify(proj)
+
+
+@app.post("/api/projects/<pid>/voice_sample")
+def voice_sample(pid):
+    """10–30 s of YOUR voice for the voice clone. Consent is required."""
+    proj = _proj(pid)
+    if "file" not in request.files:
+        proj["voice_sample"] = None
+        P.save(proj)
+        return jsonify(proj)
+    if request.form.get("consent") != "yes":
+        abort(400, "Please confirm the sample is your own voice (or you have the speaker's written permission).")
+    raw = _save_upload(pid, request.files["file"], AUDIO_EXT | VIDEO_EXT, "sample")
+    dst = f"uploads/voice_sample_{uuid.uuid4().hex[:4]}.wav"
+    try:
+        secs = media.normalize_voice_sample(P.folder(pid) / raw, P.folder(pid) / dst)
+    except Exception as e:
+        abort(400, str(e))
+    finally:
+        (P.folder(pid) / raw).unlink(missing_ok=True)
+    proj["voice_sample"], proj["voice_sample_seconds"] = dst, round(secs, 1)
+    proj["voice"]["engine"] = "clone" if tts.ENGINES["clone"].available()[0] else proj["voice"]["engine"]
     P.save(proj)
     return jsonify(proj)
 
@@ -218,8 +301,10 @@ def preview_voice(pid):
     v = proj["voice"] | {k: body[k] for k in ("engine", "voice", "lang", "speed") if body.get(k)}
     text = body.get("text") or "Welcome to Design to Cost. This is how the narration will sound."
     out = P.folder(pid) / "audio" / "preview.wav"
+    ref = str(P.folder(pid) / proj["voice_sample"]) if proj.get("voice_sample") else None
     try:
-        tts.synthesize(v["engine"] or tts.default_engine(), text[:600], v.get("voice"), v.get("lang"), v.get("speed", 1), out)
+        tts.synthesize(v["engine"] or tts.default_engine(), text[:600], v.get("voice"), v.get("lang"),
+                       v.get("speed", 1), out, ref=ref)
     except Exception as e:
         abort(400, str(e))
     return jsonify(url=f"/files/{pid}/audio/preview.wav?v={uuid.uuid4().hex[:6]}")
@@ -233,8 +318,10 @@ def est(pid):
 @app.post("/api/projects/<pid>/render")
 def render(pid):
     proj = _proj(pid)
-    if not any((s.get("script") or "").strip() for s in proj["slides"]):
-        abort(400, "No narration yet — click 'Write narration' first.")
+    if not any((s.get("script") or "").strip() or s.get("clip") for s in proj["slides"]):
+        abort(400, "No narration yet — click 'Write narration' first, or record yourself on a slide.")
+    if estimate(proj)["video_seconds"] > MAX_VIDEO_SECONDS * 1.1:
+        abort(400, f"The video would be longer than {MAX_VIDEO_SECONDS // 60} minutes. Shorten the narration first.")
 
     def work(progress, cancelled):
         build_pptx(proj)
@@ -246,9 +333,26 @@ def render(pid):
     return jsonify(jobs.start(pid, work) | {"cancel": None})
 
 
+@app.post("/api/projects/<pid>/export")
+def export_start(pid):
+    proj = _proj(pid)
+    b = request.json or {}
+    preset = b.get("preset", "reels")
+    if preset not in PRESETS:
+        abort(400, "Unknown format")
+    a, z = b.get("slide_from"), b.get("slide_to")
+
+    def work(progress, cancelled):
+        r = export(proj, preset, a, z, bool(b.get("burn_subs")), progress, cancelled)
+        return {"file": f"/files/{pid}/out/{r['file'].name}", "label": r["label"], "seconds": r["seconds"],
+                "note": r.get("note")}
+
+    return jsonify(jobs.start(f"{pid}:export", work) | {"cancel": None})
+
+
 @app.get("/api/projects/<pid>/job")
 def job(pid):
-    return jsonify(jobs.status(pid))
+    return jsonify(jobs.status(pid) | {"export": jobs.status(f"{pid}:export")})
 
 
 @app.post("/api/projects/<pid>/cancel")
@@ -267,7 +371,7 @@ def files(pid, sub):
 def run():
     from waitress import serve
     url = f"http://{lan_ip()}:{PORT}"
-    print("\n  Design to Cost — Presentation & Video Studio")
+    print(f"\n  {APP_NAME} — {MODULE_NAME}")
     print("  ------------------------------------------------")
     print(f"  On this laptop : http://localhost:{PORT}")
     print(f"  On your phone  : {url}   (same Wi-Fi)")

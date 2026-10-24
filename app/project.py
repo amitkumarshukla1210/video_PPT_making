@@ -14,7 +14,7 @@ _lock = threading.Lock()
 
 def _slide(kind, title="", notes="", image=None, script=""):
     return {"id": uuid.uuid4().hex[:8], "kind": kind, "title": title,
-            "notes": notes, "image": image, "script": script}
+            "notes": notes, "image": image, "script": script, "clip": None, "clip_seconds": 0}
 
 
 def new_project(name):
@@ -35,6 +35,9 @@ def new_project(name):
         "language": "en",
         "voice": {"engine": "", "voice": "", "lang": "en-us", "speed": 1.0},
         "music": {"file": None, "volume": 0.12},
+        "voice_sample": None,
+        "intro": True,
+        "pip": {"enabled": False, "photo": None, "position": "br", "shape": "circle", "size": "m"},
         "created": time.strftime("%Y-%m-%d %H:%M"),
         "slides": [
             _slide("title", name, "Product walkthrough"),
@@ -52,7 +55,11 @@ def folder(pid):
 
 
 def load(pid):
-    return json.loads((folder(pid) / "project.json").read_text(encoding="utf-8"))
+    data = json.loads((folder(pid) / "project.json").read_text(encoding="utf-8"))
+    data.setdefault("voice_sample", None)            # projects made before these features existed
+    data.setdefault("intro", True)
+    data.setdefault("pip", {"enabled": False, "photo": None, "position": "br", "shape": "circle", "size": "m"})
+    return data
 
 
 def save(data):
