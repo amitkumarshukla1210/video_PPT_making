@@ -35,6 +35,9 @@ echo [1/3] Creating private Python environment (.venv)...
 if not exist .venv\Scripts\python.exe %PY% -m venv .venv
 if errorlevel 1 goto fail
 set "VPY=.venv\Scripts\python.exe"
+REM slow or unstable internet: wait longer and retry more often
+set "PIP_DEFAULT_TIMEOUT=120"
+set "PIP_RETRIES=10"
 
 echo [2/3] Installing open-source packages...
 %VPY% -m pip install --upgrade pip >nul

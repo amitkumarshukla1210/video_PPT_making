@@ -5,6 +5,7 @@
   python scripts/download_models.py --piper    also a few Piper voices for extra languages
 """
 import sys
+import time
 import urllib.request
 from pathlib import Path
 
@@ -23,7 +24,17 @@ PIPER_VOICES = [
 ]
 
 
-def fetch(url, dest):
+def fetch(url, dest, attempts=4):
+    for n in range(1, attempts + 1):
+        if _fetch(url, dest):
+            return True
+        if n < attempts:
+            print(f"  … retrying ({n + 1}/{attempts})")
+            time.sleep(5 * n)
+    return False
+
+
+def _fetch(url, dest):
     dest = Path(dest)
     if dest.exists() and dest.stat().st_size > 0:
         print(f"  ✔ already have {dest.name}")
@@ -32,7 +43,7 @@ def fetch(url, dest):
     tmp = dest.with_suffix(dest.suffix + ".part")
     print(f"  ↓ {dest.name}")
     try:
-        with urllib.request.urlopen(url, timeout=60) as r, open(tmp, "wb") as f:
+        with urllib.request.urlopen(url, timeout=120) as r, open(tmp, "wb") as f:
             total = int(r.headers.get("Content-Length") or 0)
             done = 0
             while chunk := r.read(1 << 20):
