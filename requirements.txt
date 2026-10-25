@@ -1,0 +1,11 @@
+flask>=3.0            # BSD-3   web UI
+waitress>=3.0         # ZPL-2.1 web server (Windows friendly)
+python-pptx>=1.0      # MIT     PowerPoint files
+pillow>=10.0          # MIT-CMU slide images
+numpy>=1.26           # BSD-3
+kokoro-onnx>=0.4      # MIT     Kokoro-82M voice (weights Apache-2.0)
+onnxruntime>=1.18     # MIT     runs the voice model (CPU). GPU: see README
+imageio-ffmpeg>=0.5   # BSD-2   ships an ffmpeg.exe (LGPL/GPL build) if FFmpeg is not installed
+qrcode>=7.4           # BSD     QR code to open the app on your phone
+pyttsx3>=2.90; sys_platform == "win32"   # MPL-2.0 fallback: Windows built-in voices
+pytest>=8.0           # MIT     tests
