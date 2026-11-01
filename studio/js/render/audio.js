@@ -21,36 +21,39 @@ export async function blobSeconds(blob) {
 }
 
 /**
- * Wire voices and music into `ctx`, starting at ctx time `t0`.
- * voiceBuffers: Map(sceneId -> AudioBuffer). Returns { stop } to cancel.
+ * Wire voices and music into `ctx`. Timeline time 0 is ctx time `t0`; playback begins at timeline
+ * time `from` (for previews started from the scrub bar). voiceBuffers: Map(sceneId -> AudioBuffer).
+ * Returns { stop } to cancel.
  */
-export function scheduleAudio(ctx, dest, timeline, voiceBuffers, musicBuffer, project, t0) {
+export function scheduleAudio(ctx, dest, timeline, voiceBuffers, musicBuffer, project, t0, from = 0) {
   const sources = [];
   for (const it of timeline.items) {
     if (it.voiceStart == null) continue;
     const buf = voiceBuffers.get(it.sceneId);
-    if (!buf) continue;
+    if (!buf || it.voiceStart + buf.duration <= from) continue;
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.connect(dest);
-    src.start(t0 + it.voiceStart);
+    if (it.voiceStart >= from) src.start(t0 + it.voiceStart);
+    else src.start(t0 + from, from - it.voiceStart);
     sources.push(src);
   }
-  if (musicBuffer) {
+  if (musicBuffer && timeline.total > from) {
     const base = Number(project.music?.volume ?? 0.2);
     const gain = ctx.createGain();
     const pts = project.music?.duck === false ? [[0, base]] : duckingPoints(timeline, base, DUCK);
-    gain.gain.setValueAtTime(pts[0][1], t0);
-    for (const [time, value] of pts.slice(1)) gain.gain.linearRampToValueAtTime(value, t0 + time);
+    gain.gain.setValueAtTime(lastValue(pts, from), t0 + from);
+    for (const [time, value] of pts) if (time > from) gain.gain.linearRampToValueAtTime(value, t0 + time);
     // fade out over the last 2 s
     const end = timeline.total;
-    gain.gain.setValueAtTime(lastValue(pts, end - 2), t0 + Math.max(0, end - 2));
+    const fadeAt = Math.max(from, end - 2);
+    gain.gain.setValueAtTime(lastValue(pts, fadeAt), t0 + fadeAt);
     gain.gain.linearRampToValueAtTime(0, t0 + end);
     const src = ctx.createBufferSource();
     src.buffer = musicBuffer;
     src.loop = true;
     src.connect(gain).connect(dest);
-    src.start(t0);
+    src.start(t0 + from, from % musicBuffer.duration);
     src.stop(t0 + end);
     sources.push(src);
   }

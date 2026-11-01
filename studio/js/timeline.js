@@ -139,7 +139,7 @@ export function musicGainAt(timeline, t, base, duck = 0.3, ramp = 0.25) {
   for (const it of timeline.items) {
     if (it.voiceStart == null) continue;
     if (t >= it.voiceStart - ramp && t <= it.voiceEnd + ramp) {
-      let k = 1;
+      let k = 0; // 0 = fully ducked (voice playing), 1 = normal level
       if (t < it.voiceStart) k = (it.voiceStart - t) / ramp;
       else if (t > it.voiceEnd) k = (t - it.voiceEnd) / ramp;
       g = Math.min(g, duck + (1 - duck) * Math.min(1, Math.max(0, k)));

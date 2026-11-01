@@ -33,6 +33,7 @@ export function validateProject(data) {
   if (!Array.isArray(data.scenes)) throw new Error("The project has no scene list.");
   const base = newProject(TEMPLATES[data.template] ? data.template : "explainer");
   const p = { ...base, ...data };
+  p.template = base.template; // unknown template ids fall back to the default
   p.voice = { ...base.voice, ...(data.voice || {}) };
   p.music = { ...base.music, ...(data.music || {}) };
   p.cards = { ...base.cards, ...(data.cards || {}) };
