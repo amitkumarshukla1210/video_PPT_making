@@ -118,6 +118,9 @@ class Studio:
     eleven_mode = "invalid_key"
 
     def _eleven(self, route):
+        if route.request.method == "OPTIONS":   # CORS preflight (newer Chromium sends it to routed requests too)
+            return route.fulfill(status=204, headers={"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*",
+                                                      "Access-Control-Allow-Methods": "GET, POST, OPTIONS"})
         self.eleven_calls.append(route.request.url)
         if self.eleven_mode == "invalid_key":
             return route.fulfill(status=401, content_type="application/json", headers={"Access-Control-Allow-Origin": "*"},
