@@ -745,8 +745,9 @@ function bind() {
     $("#elevenKey").value = "";
     $("#localKey").value = "";
   });
-  dlg.addEventListener("close", () => {
-    if (dlg.returnValue !== "save") return;
+  // Save on the click itself: the dialog's "close" event arrives a moment later in newer browsers,
+  // and anything done in between must already see the new settings.
+  $("#saveSettings").addEventListener("click", () => {
     settings = {
       ...settings,
       elevenKey: $("#elevenKey").value.trim(),
@@ -757,7 +758,8 @@ function bind() {
     };
     saveSettings(settings);
     toast("Settings saved in this browser.");
-    loadVoiceList({ quiet: true });
+    // with an online engine selected, show a wrong key / unreachable server straight away
+    loadVoiceList({ quiet: store.project.voice.engine === "webspeech" });
   });
 
   // keyboard shortcuts
