@@ -11,3 +11,15 @@ models/piper/*
 *.part
 models/hf/
 .venv-clone/
+# secrets and test artefacts — never commit
+.env
+.env.*
+*.har
+*.pem
+*.key
+*secret*
+*apikey*
+test-results/
+playwright-report/
+tests/.cache/
+.pytest_cache/
