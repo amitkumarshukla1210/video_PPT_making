@@ -31,7 +31,7 @@
 ## 3. Architecture
 
 ```
-studio/index.html            page shell (header, icon strip, 4 work areas, dialogs)
+studio/studio.html           page shell (header, icon strip, work areas, settings dialog); studio/index.html redirects to it
 studio/css/studio.css        DTC theme tokens + dark mode + responsive layout
 studio/js/main.js            boot, UI wiring, rendering of lists, keyboard shortcuts
 studio/js/templates.js       5 templates (scene structure, durations, text/transition style, music mood, pacing)
@@ -82,6 +82,6 @@ tests/test_studio_e2e.py     Playwright (Chromium) end-to-end against the Flask 
 
 ## 7. Hosting plan
 
-- **GitHub Pages:** `.github/workflows/pages.yml` uploads `studio/` as the Pages artifact on push to `main` (and manual dispatch). Settings → Pages → Source: *GitHub Actions* (one-time click by the owner). URL: `https://<owner>.github.io/video_PPT_making/`.
+- **GitHub Pages:** `.github/workflows/pages.yml` uploads `studio/` as the Pages artifact on push to `main` (and manual dispatch). Settings → Pages → Source: *GitHub Actions* (one-time click by the owner). URL: `https://<owner>.github.io/video_PPT_making/studio.html`.
 - Everything uses relative paths, so it also works at `/studio/` on the local Flask server and from any static host.
 - No secrets in the repo; ElevenLabs key lives only in the user's browser.

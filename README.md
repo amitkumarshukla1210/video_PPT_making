@@ -14,6 +14,73 @@ You can use it from the laptop's browser or from your **phone's browser over hom
 
 ---
 
+## Video & Voice Studio (web page, no install needed)
+
+A second tool in this repo: a **browser page** that turns a script into a narrated video or an audio
+piece. It runs fully in the browser, so it can be hosted for free on GitHub Pages.
+
+**Live URL** (after the one-time Pages setup below): `https://<user>.github.io/<repo>/studio.html`
+— for this repo: **https://amitkumarshukla1210.github.io/video_PPT_making/studio.html**
+
+### Features
+- **5 templates:** Inspiration, Film trailer, Explainer, Product video and Audio documentary. Each sets the scene structure, default lengths, text style, transition, music mood and voice pacing.
+- **Workflow:** choose a template → write or paste a script → **Split into scenes**. You can then edit, add, reorder (↑↓) and delete scenes, give each one a colour, image or video background, and set its length.
+- **Voice engines** (switchable):
+  - **Browser / Windows voices** — free and offline, but **preview only**: browsers don't give the audio to the page, so it can't go into a file.
+  - **Local voice server** — this repo's app (Kokoro / Piper / eSpeak) or any OpenAI-compatible `/v1/audio/speech` server.
+  - **ElevenLabs** — with your own API key, kept only in this browser.
+- **Voice controls:** voice list, speed, pitch (browser voices), stability and similarity (ElevenLabs).
+  - You can preview and regenerate one scene at a time, or give a scene its own voice.
+  - A **voice library** saves named presets.
+  - Errors (wrong key, quota used up, no internet) show a clear message, and the preview falls back to a browser voice.
+- **Video:**
+  - 720p or 1080p, in 16:9, 9:16 or 1:1.
+  - Fade, slide and zoom transitions, slow pan/zoom on images, and title and end cards with the DC logo.
+  - Subtitles burned into the picture, plus a `.srt` download.
+  - Background music that is lowered automatically under the voice.
+  - A progress bar and a Cancel button.
+- **Hard limit of 10 minutes:** a meter shows the time left, and export is blocked when the video is too long.
+- **Export formats:**
+  - **WebM** (native).
+  - **MP4** — recorded directly where the browser supports it, otherwise converted with ffmpeg.wasm. ffmpeg.wasm is downloaded only when it's needed.
+  - **Audio only:** **WAV** or **MP3**.
+- **Projects:** autosave in the browser, undo/redo (Ctrl+Z / Ctrl+Y), and Save/Open as a `.json` file that includes your images and music.
+- Dark/light mode, phone and tablet layouts, keyboard and screen-reader friendly.
+
+### How to use the studio
+1. Open the page: either the live URL, or **http://localhost:8000/studio/** while `start_windows.bat` is running.
+2. Click a template, then **Use template sample** or paste your own script, then **Split into scenes**.
+3. Under **Voice**, choose the engine:
+   - **Local voice server**: works out of the box when the Design to Cost app is running on this laptop.
+   - **ElevenLabs**: click ⚙ **Settings** and paste your API key.
+4. Click **▶ Play preview**. Then choose the shape, quality and file type, and click **Export**.
+
+### Voice engine setup
+| Engine | Setup |
+|---|---|
+| Browser / Windows voices | Nothing. Preview only. |
+| Local voice server | Run `start_windows.bat`. The page calls `http://localhost:8000/v1/audio/speech`; the server allows calls from `localhost` and `*.github.io` pages. Another server: ⚙ Settings → *Server URL*. |
+| ElevenLabs | ⚙ Settings → paste your key. It is stored only in this browser (localStorage), sent only to `api.elevenlabs.io`, and never saved in project files or the repo. |
+
+### Run locally, and test
+```
+start_windows.bat                       # then open http://localhost:8000/studio/
+node --test tests/studio/*.test.mjs     # unit tests (no install)
+python -m pytest -q                     # app + speech API + browser end-to-end tests
+```
+The end-to-end tests need `pip install playwright` and `python -m playwright install chromium`.
+The MP4/MP3 tests also need the ffmpeg.wasm core in `tests/.cache`; CI does this:
+`cd tests/.cache && npm pack @ffmpeg/core@0.12.10 && mkdir ffmpeg-core && tar xzf ffmpeg-core-0.12.10.tgz -C ffmpeg-core`.
+
+### Hosting on GitHub Pages (one time)
+1. Merge the pull request into `main`.
+2. **Settings → Pages → Source: GitHub Actions.**
+3. The `CI` workflow runs the tests and then publishes `studio/` to Pages. Every later merge to `main` updates the site.
+
+More detail: `docs/studio-plan.md` (design), `docs/studio-report.md` (results), `docs/studio-bugs.md` (bugs fixed).
+
+---
+
 ## Quick start (Windows), step by step
 
 You only do steps 1–3 once.
@@ -138,8 +205,10 @@ The app shows its estimate for **your** laptop before you render.
 ## For developers
 
 ```
+studio/              Video & Voice Studio (static page: studio.html, css/, js/, vendor/ffmpeg)
 app/
-  main.py            web server + API (Flask, served by waitress on 0.0.0.0:8000)
+  main.py            web server + API (Flask, served by waitress on 0.0.0.0:8000); also serves /studio/
+  speech_api.py      OpenAI-compatible /v1/audio/speech + /v1/audio/voices for the studio
   config.py          brand, folders, video settings, 15-minute limit
   layout.py          slide layout shared by PPTX and video (+ presenter bubble positions)
   ppt_builder.py     branded .pptx; narration -> speaker notes
