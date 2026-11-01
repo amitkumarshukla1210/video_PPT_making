@@ -150,6 +150,7 @@ function renderScenes() {
             <option value="">Project voice</option>
             ${presets.map((p) => `<option value="${esc(p.name)}" ${s.voice && s.voice.preset === p.name ? "selected" : ""}>${esc(p.name)}</option>`).join("")}
           </select></label>
+          <label>Length <input type="number" data-k="seconds" min="1" max="300" step="0.5" value="${s.fixedSeconds ?? ""}" placeholder="auto" style="width:72px" aria-label="Length of scene ${i + 1} in seconds (blank = automatic)"></label>
           <span data-dur>${it ? `${(it.end - it.start).toFixed(1)} s${it.estimated ? " (est.)" : ""}` : ""}</span>
           <span data-badge>${voiceBadge(s)}</span>
         </div>
@@ -574,7 +575,10 @@ function bind() {
     const id = li.dataset.id;
     const scene = store.project.scenes.find((s) => s.id === id);
     const k = e.target.dataset.k;
-    if (k === "color") store.editScene(id, { background: { ...scene.background, color: e.target.value } });
+    if (k === "seconds") {
+      const v = Number(e.target.value);
+      store.editScene(id, { fixedSeconds: v > 0 ? Math.min(300, v) : null });
+    } else if (k === "color") store.editScene(id, { background: { ...scene.background, color: e.target.value } });
     else if (k === "transition") {
       const tpl = getTemplate(store.project.template);
       store.editScene(id, { transition: e.target.value ? { type: e.target.value, seconds: tpl.transition.seconds } : null });

@@ -4,6 +4,7 @@
 export const TEMPLATES = {
   inspiration: {
     id: "inspiration",
+    onScreen: "line", // "line" = the spoken line is the big on-screen text; "title" = scene title + subtitles
     name: "Inspiration",
     blurb: "Short, uplifting lines over calm visuals.",
     icon: "✦",
@@ -22,6 +23,7 @@ export const TEMPLATES = {
   },
   trailer: {
     id: "trailer",
+    onScreen: "line", // "line" = the spoken line is the big on-screen text; "title" = scene title + subtitles
     name: "Film trailer",
     blurb: "Punchy cuts, bold titles, dramatic pauses.",
     icon: "▶",
@@ -40,6 +42,7 @@ export const TEMPLATES = {
   },
   explainer: {
     id: "explainer",
+    onScreen: "title", // "line" = the spoken line is the big on-screen text; "title" = scene title + subtitles
     name: "Explainer",
     blurb: "Clear steps, steady pace, readable on-screen text.",
     icon: "?",
@@ -58,6 +61,7 @@ export const TEMPLATES = {
   },
   product: {
     id: "product",
+    onScreen: "title", // "line" = the spoken line is the big on-screen text; "title" = scene title + subtitles
     name: "Product video",
     blurb: "Feature by feature, with screenshots or clips.",
     icon: "◆",
@@ -72,10 +76,11 @@ export const TEMPLATES = {
     background: { color: "#152238" },
     music: { mood: "Upbeat electronic", volume: 0.22 },
     voice: { pace: 1.05, pauseAfterScene: 0.4 },
-    sample: "Meet Design to Cost.\n\nSee every part's cost, broken down by material, process and overhead.\n\nTrack commodity and currency changes automatically.\n\nCompare suppliers side by side and spot savings.\n\nBook your demo today.",
+    sample: "# Meet Design to Cost\nOne place for every cost decision.\n\n# Part cost breakdown\nSee every part's cost, broken down by material, process and overhead.\n\n# Live commodity prices\nTrack commodity and currency changes automatically.\n\n# Supplier comparison\nCompare suppliers side by side and spot savings.\n\n# Book a demo\nBook your demo today.",
   },
   documentary: {
     id: "documentary",
+    onScreen: "title", // "line" = the spoken line is the big on-screen text; "title" = scene title + subtitles
     name: "Audio documentary",
     blurb: "Voice first. Long, calm narration; exports audio too.",
     icon: "♪",
@@ -91,7 +96,7 @@ export const TEMPLATES = {
     music: { mood: "Soft strings / drone", volume: 0.15 },
     voice: { pace: 0.9, pauseAfterScene: 1.2 },
     audioOnly: true,
-    sample: "It began in a small workshop, where every price was written in a notebook.\n\nOver the years, the notebooks became spreadsheets, and the spreadsheets became a system.\n\nThe people who built it remember the long nights of reconciling numbers that never matched.\n\nToday, the numbers match. But the questions behind them are the same: what does it really cost, and why?",
+    sample: "# The workshop\nIt began in a small workshop, where every price was written in a notebook.\n\n# From paper to system\nOver the years, the notebooks became spreadsheets, and the spreadsheets became a system.\n\n# The long nights\nThe people who built it remember the long nights of reconciling numbers that never matched.\n\n# Today\nToday, the numbers match. But the questions behind them are the same: what does it really cost, and why?",
   },
 };
 

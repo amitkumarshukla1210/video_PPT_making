@@ -93,3 +93,14 @@ test("clock format", () => {
   assert.equal(formatClock(600), "10:00");
   assert.equal(formatClock(61.4), "1:01");
 });
+
+test("a length set by the user wins over the template minimum but never cuts the voice", () => {
+  const p = project("Hi.", "documentary");
+  p.cards = { title: false, end: false };
+  p.scenes[0].fixedSeconds = 5;
+  assert.equal(buildTimeline(p).total, 5);
+  p.scenes[0].audio = { mediaId: "x", seconds: 2, key: "k" };
+  assert.equal(buildTimeline(p).total, 5);
+  p.scenes[0].audio.seconds = 6;
+  assert.ok(Math.abs(buildTimeline(p).total - (0.35 + 6 + 0.4)) < 1e-9);
+});

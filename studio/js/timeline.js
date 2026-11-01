@@ -27,7 +27,9 @@ export function buildTimeline(project) {
     let voiceEnd = null;
     if (scene.audio && scene.audio.seconds > 0) {
       const pause = Math.max(tpl.voice.pauseAfterScene, MIN_VOICE_TAIL);
-      d = Math.max(scene.fixedSeconds || 0, VOICE_LEAD + scene.audio.seconds + pause, tpl.sceneSeconds.min);
+      const spoken = VOICE_LEAD + scene.audio.seconds;
+      // a length set by the user wins over the template minimum, but never cuts the voice off
+      d = scene.fixedSeconds ? Math.max(scene.fixedSeconds, spoken + MIN_VOICE_TAIL) : Math.max(spoken + pause, tpl.sceneSeconds.min);
       voiceStart = t + VOICE_LEAD;
       voiceEnd = voiceStart + scene.audio.seconds;
     } else {

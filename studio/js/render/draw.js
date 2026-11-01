@@ -169,6 +169,15 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+const LINE_MAX_WORDS = 16;
+
+/** Text drawn big on screen for a scene: its spoken line (short lines, "line" templates) or its title. */
+export function onScreenText(tpl, scene) {
+  const words = (scene.text || "").trim().split(/\s+/).filter(Boolean).length;
+  if (tpl.onScreen === "line" && words && words <= LINE_MAX_WORDS) return { text: scene.text.trim(), isLine: true };
+  return { text: scene.title || "", isLine: false };
+}
+
 function drawItem(ctx, W, H, project, timeline, index, t, assets) {
   const tpl = getTemplate(project.template);
   const item = timeline.items[index];
@@ -182,7 +191,7 @@ function drawItem(ctx, W, H, project, timeline, index, t, assets) {
   const sceneIndex = project.scenes.indexOf(scene);
   const hasMedia = drawBackground(ctx, W, H, scene, p, sceneIndex, tpl, assets);
   if (hasMedia) shade(ctx, W, H, tpl.text.position === "top" ? "top" : "bottom");
-  drawHeadline(ctx, W, H, scene.title, tpl, k);
+  drawHeadline(ctx, W, H, onScreenText(tpl, scene).text, tpl, k);
 }
 
 /** Draw the frame at time t, including transitions and burned-in subtitles. */
@@ -248,7 +257,10 @@ export function drawFrame(ctx, project, timeline, t, assets) {
   }
   if (project.subtitles?.burn) {
     const cue = captionAt(timeline, t);
-    if (cue) drawCaption(ctx, W, H, cue.text, getTemplate(project.template));
+    const tpl = getTemplate(project.template);
+    const scene = item.type === "scene" ? project.scenes.find((s) => s.id === item.sceneId) : null;
+    // a scene whose spoken line is already the big on-screen text gets no second copy at the bottom
+    if (cue && !(scene && onScreenText(tpl, scene).isLine)) drawCaption(ctx, W, H, cue.text, tpl);
   }
   ctx.restore();
 }
