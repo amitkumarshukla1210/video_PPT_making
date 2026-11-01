@@ -1,0 +1,72 @@
+# Tests on every push and pull request; deploys the Video & Voice Studio to GitHub Pages
+# when main changes. One-time setup: Settings → Pages → Source: "GitHub Actions".
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: System packages (FFmpeg, eSpeak NG voice for the server tests)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg espeak-ng
+
+      - name: Python packages
+        run: pip install -r requirements.txt playwright
+
+      - name: Chromium for end-to-end tests
+        run: python -m playwright install --with-deps chromium
+
+      - name: ffmpeg.wasm core for the MP4/MP3 tests (served locally, never from the CDN during tests)
+        run: |
+          mkdir -p tests/.cache/ffmpeg-core
+          cd tests/.cache && npm pack @ffmpeg/core@0.12.10 && tar xzf ffmpeg-core-0.12.10.tgz -C ffmpeg-core
+
+      - name: Unit tests (studio)
+        run: node --test tests/studio/*.test.mjs
+
+      - name: Python + end-to-end tests
+        run: python -m pytest -q
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}studio.html
+    steps:
+      - uses: actions/checkout@v4
+      - name: Put the version number next to the page (shown in its footer)
+        run: cp VERSION studio/VERSION
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: studio
+      - id: deployment
+        uses: actions/deploy-pages@v4
