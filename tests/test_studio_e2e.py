@@ -65,6 +65,11 @@ def wav_bytes(seconds, freq=300.0, amp=0.3, rate=24000):
 
 SPEECH_STUB = """
   window.__spoken = [];
+  window.__toasts = [];   // every message the page shows, for clear test failures
+  document.addEventListener('DOMContentLoaded', () => {
+    const t = document.querySelector('#toast');
+    if (t) new MutationObserver(() => window.__toasts.push(t.textContent)).observe(t, { childList: true, characterData: true, subtree: true });
+  });
   const s = window.speechSynthesis;
   if (s) {
     s.speak = (u) => { window.__spoken.push(u.text); setTimeout(() => u.onend && u.onend(), 10); };
@@ -177,7 +182,12 @@ class Studio:
     def toast(self, containing=None):
         """Text of the message box; with `containing`, wait until that message is shown (messages replace each other)."""
         if containing:
-            self.page.wait_for_function("t => { const e = document.querySelector('#toast'); return !e.hidden && e.textContent.includes(t); }", arg=containing)
+            try:
+                self.page.wait_for_function("t => window.__toasts.some(x => x.includes(t))", arg=containing, timeout=15000)
+            except Exception:
+                raise AssertionError(f"message {containing!r} never shown; messages were {self.page.evaluate('window.__toasts')}, "
+                                     f"console: {self.errors}") from None
+            return next(x for x in self.page.evaluate("window.__toasts") if containing in x)
         else:
             self.page.wait_for_selector("#toast:not([hidden])")
         return self.page.text_content("#toast")
