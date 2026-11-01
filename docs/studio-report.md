@@ -5,7 +5,7 @@
 - **Tests: 70 / 70 passing.**
   - 39 unit tests: `node --test tests/studio/*.test.mjs`.
   - 31 Python tests: `python -m pytest -q`. That is the 5 existing app tests, 5 speech-API tests and 21 browser end-to-end tests.
-- **Bugs found and fixed: 5**, see `docs/studio-bugs.md`.
+- **Bugs found and fixed: 6**, see `docs/studio-bugs.md`.
 - Lint: the repo has no linter configured. `pyflakes` is clean on the touched Python files, and `node --check` is clean on all JS.
 - Secret scan: no keys or tokens in the repo. `.gitignore` now blocks `.env`, `*.har`, `*.key`, `*.pem`, `*secret*`, `*apikey*` and test output.
 

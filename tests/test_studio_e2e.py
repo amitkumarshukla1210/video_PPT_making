@@ -80,6 +80,7 @@ class Studio:
         self.ctx = browser.new_context(viewport=viewport or {"width": 1366, "height": 900}, accept_downloads=True)
         self.page = self.ctx.new_page()
         self.errors = []
+        self.expected_errors = []   # console messages a test provokes on purpose (e.g. a mocked 401)
         self.tts_calls = []
         self.eleven_calls = []
         self.cdn_requests = []
@@ -170,8 +171,12 @@ class Studio:
             self.page.click("#downloadLink")
         return d.value
 
-    def toast(self):
-        self.page.wait_for_selector("#toast:not([hidden])")
+    def toast(self, containing=None):
+        """Text of the message box; with `containing`, wait until that message is shown (messages replace each other)."""
+        if containing:
+            self.page.wait_for_function("t => { const e = document.querySelector('#toast'); return !e.hidden && e.textContent.includes(t); }", arg=containing)
+        else:
+            self.page.wait_for_selector("#toast:not([hidden])")
         return self.page.text_content("#toast")
 
     def close(self):
@@ -183,7 +188,7 @@ def studio(browser, base_url, request):
     opts = getattr(request, "param", {}) or {}
     s = Studio(browser, base_url, **opts)
     yield s
-    errors = list(s.errors)
+    errors = [e for e in s.errors if not any(x in e for x in s.expected_errors)]
     s.close()
     assert not errors, f"console errors: {errors}"
 
@@ -269,11 +274,12 @@ def test_engine_switch_and_voice_list(studio):
 
 def test_invalid_elevenlabs_key_shows_error_and_falls_back(studio):
     p = studio.page
+    studio.expected_errors.append("401")          # the browser itself logs the mocked 401 response
     p.click("#settingsBtn")
     p.fill("#elevenKey", "sk_wrong_key")
     p.click("#saveSettings")
     p.select_option("#engine", "elevenlabs")
-    assert "rejected" in studio.toast()
+    assert "rejected" in studio.toast(containing="rejected")
     studio.write_and_split("Hello from the fallback voice.")
     # the voice list failed, so give the scene a voice id directly and preview it
     p.evaluate("() => window.__studio.store.update(p => { p.voice.voiceId = 'abc'; })")
@@ -284,7 +290,6 @@ def test_invalid_elevenlabs_key_shows_error_and_falls_back(studio):
     assert studio.eleven_calls and all("api.elevenlabs.io" in u for u in studio.eleven_calls)
     # the key is kept only in this browser's settings, never in the project
     assert "sk_wrong_key" not in json.dumps(studio.project())
-    studio.errors[:] = [e for e in studio.errors if "401" not in e]   # the browser logs the mocked 401 itself
 
 
 def test_scene_add_edit_reorder_delete_undo_redo(studio):
@@ -399,7 +404,7 @@ def test_project_save_and_open_round_trip(studio, tmp_path):
     bad = tmp_path / "bad.json"
     bad.write_text("{not json")
     p.set_input_files("#openFile", str(bad))
-    assert "not valid JSON" in studio.toast()
+    assert "not valid JSON" in studio.toast(containing="not valid JSON")
     assert studio.project()["title"] == "Round trip"
 
 
