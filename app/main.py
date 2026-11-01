@@ -5,11 +5,12 @@ import sys
 import uuid
 from pathlib import Path
 
-from flask import Flask, jsonify, request, send_from_directory, render_template, abort, Response
+from flask import Flask, jsonify, request, send_from_directory, render_template, abort, Response, redirect
 from werkzeug.utils import secure_filename
 
 from . import jobs, media, project as P, tts
-from .config import HOST, PORT, MAX_VIDEO_SECONDS, APP_NAME, MODULE_NAME
+from .config import HOST, PORT, MAX_VIDEO_SECONDS, APP_NAME, MODULE_NAME, ROOT
+from .speech_api import bp as speech_bp
 from .ffmpeg_utils import best_encoder, ENCODERS
 from .ppt_builder import build_pptx
 from .ppt_import import import_pptx
@@ -22,6 +23,8 @@ VIDEO_EXT = {".mp4", ".mov", ".webm", ".mkv", ".m4v", ".3gp", ".avi"}
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 1024   # 1 GB uploads
+app.register_blueprint(speech_bp)
+STUDIO_DIR = ROOT / "studio"
 
 
 def lan_ip():
@@ -64,6 +67,22 @@ def _err(e):
 @app.get("/")
 def index():
     return render_template("index.html")
+
+
+@app.get("/studio")
+def studio_redirect():
+    return redirect("/studio/", code=301)        # relative asset paths need the trailing slash
+
+
+@app.get("/studio/")
+def studio_home():
+    """Video & Voice Studio (static page, also hostable on GitHub Pages)."""
+    return send_from_directory(STUDIO_DIR, "studio.html")
+
+
+@app.get("/studio/<path:sub>")
+def studio_files(sub):
+    return send_from_directory(STUDIO_DIR, sub)
 
 
 @app.get("/api/system")

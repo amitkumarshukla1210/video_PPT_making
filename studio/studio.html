@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design to Cost — Video &amp; Voice Studio</title>
+<meta name="description" content="Turn a script into a narrated video or audio piece in your browser.">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="css/studio.css">
+<script type="module" src="js/main.js"></script>
+</head>
+<body>
+<a class="skip" href="#workspace">Skip to the editor</a>
+
+<header class="topbar">
+  <div class="brand">
+    <img src="assets/logo.png" alt="" width="40" height="40">
+    <div class="brand-text"><span class="name">Design to Cost</span><span class="tagline">Video &amp; Voice Studio</span></div>
+  </div>
+  <div class="actions" role="toolbar" aria-label="Project actions">
+    <button class="icon-btn" id="undoBtn" aria-label="Undo (Ctrl+Z)" title="Undo (Ctrl+Z)" disabled>↶</button>
+    <button class="icon-btn" id="redoBtn" aria-label="Redo (Ctrl+Y)" title="Redo (Ctrl+Y)" disabled>↷</button>
+    <button class="btn btn-outline" id="newBtn">New</button>
+    <button class="btn btn-outline" id="openBtn">Open…</button>
+    <input type="file" id="openFile" accept=".json,application/json" hidden>
+    <button class="btn btn-outline" id="saveBtn">Save file</button>
+    <button class="icon-btn" id="themeBtn" aria-label="Switch dark / light mode" title="Dark / light mode">◐</button>
+    <button class="icon-btn" id="settingsBtn" aria-label="Settings" title="Settings">⚙</button>
+  </div>
+</header>
+
+<nav class="template-strip" aria-label="Templates">
+  <div id="templates" class="strip" role="radiogroup" aria-label="Choose a template"></div>
+</nav>
+
+<main id="workspace" class="workspace">
+  <div class="col col-edit">
+    <section class="panel" aria-labelledby="h-script">
+      <div class="panel-head">
+        <h2 id="h-script">1 · Script</h2>
+        <input id="projectTitle" class="title-input" aria-label="Video title" placeholder="Video title">
+      </div>
+      <label for="script" class="label">Write or paste your script. A blank line starts a new scene; a line starting with <code>#</code> becomes the scene title.</label>
+      <textarea id="script" rows="8" spellcheck="true"></textarea>
+      <div class="row">
+        <button class="btn btn-primary" id="splitBtn">Split into scenes</button>
+        <button class="btn btn-outline" id="sampleBtn">Use template sample</button>
+        <span class="muted" id="scriptStats" aria-live="polite"></span>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-scenes">
+      <div class="panel-head">
+        <h2 id="h-scenes">2 · Scenes <span class="muted" id="sceneCount"></span></h2>
+        <button class="btn btn-outline" id="addSceneBtn">+ Add scene</button>
+      </div>
+      <ol id="scenes" class="scenes" aria-label="Scenes"></ol>
+      <p class="muted empty" id="scenesEmpty">No scenes yet — write a script and click <b>Split into scenes</b>.</p>
+    </section>
+  </div>
+
+  <div class="col col-side">
+    <section class="panel" aria-labelledby="h-preview">
+      <div class="panel-head"><h2 id="h-preview">Preview</h2><span class="muted" id="previewTime">0:00 / 0:00</span></div>
+      <div class="stage" id="stage"><canvas id="previewCanvas" width="640" height="360" aria-label="Video preview"></canvas></div>
+      <div class="row">
+        <button class="btn btn-primary" id="playBtn" aria-pressed="false">▶ Play preview</button>
+        <input type="range" id="scrub" min="0" max="100" step="0.1" value="0" aria-label="Preview position">
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-voice">
+      <div class="panel-head"><h2 id="h-voice">3 · Voice</h2></div>
+      <div class="grid2">
+        <label class="field">Engine<select id="engine"></select></label>
+        <label class="field">Voice<span class="inline"><select id="voiceSelect"></select><button class="icon-btn small" id="refreshVoices" aria-label="Reload voice list" title="Reload voice list">⟳</button></span></label>
+        <label class="field">Speed <output id="speedOut"></output><input type="range" id="speed" min="0.7" max="1.3" step="0.05"></label>
+        <label class="field" id="pitchField">Pitch <output id="pitchOut"></output><input type="range" id="pitch" min="0.5" max="1.5" step="0.05"></label>
+        <label class="field" id="stabilityField">Stability <output id="stabilityOut"></output><input type="range" id="stability" min="0" max="1" step="0.05"></label>
+        <label class="field" id="similarityField">Similarity <output id="similarityOut"></output><input type="range" id="similarity" min="0" max="1" step="0.05"></label>
+      </div>
+      <p class="muted" id="engineNote" aria-live="polite"></p>
+      <div class="row">
+        <button class="btn btn-outline" id="voicePreviewBtn">▶ Hear voice</button>
+        <button class="btn btn-outline" id="genVoicesBtn">Generate all voiceovers</button>
+      </div>
+      <h3>Voice library</h3>
+      <div class="row">
+        <input id="presetName" aria-label="Preset name" placeholder="Preset name, e.g. Calm narrator">
+        <button class="btn btn-outline" id="savePresetBtn">Save preset</button>
+      </div>
+      <ul id="presets" class="presets" aria-label="Saved voice presets"></ul>
+    </section>
+
+    <section class="panel" aria-labelledby="h-music">
+      <div class="panel-head"><h2 id="h-music">4 · Music</h2><span class="muted" id="musicMood"></span></div>
+      <div class="row">
+        <label class="btn btn-outline" for="musicFile">Upload music</label>
+        <input type="file" id="musicFile" accept="audio/*" class="visually-hidden">
+        <button class="btn btn-outline" id="musicClear">Remove</button>
+        <span class="muted" id="musicName"></span>
+      </div>
+      <div class="grid2">
+        <label class="field">Volume <output id="musicVolOut"></output><input type="range" id="musicVol" min="0" max="0.8" step="0.02"></label>
+        <label class="check"><input type="checkbox" id="musicDuck"> Lower music under the voice</label>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-export">
+      <div class="panel-head"><h2 id="h-export">5 · Export</h2></div>
+      <div class="meter" role="meter" aria-label="Video length" aria-valuemin="0" aria-valuemax="600" id="meter"><div id="meterFill"></div></div>
+      <p id="limitText" class="limit" aria-live="polite"></p>
+      <div class="grid2">
+        <label class="field">Shape<select id="aspect"><option value="16:9">16:9 landscape</option><option value="9:16">9:16 vertical</option><option value="1:1">1:1 square</option></select></label>
+        <label class="field">Quality<select id="height"><option value="720">720p</option><option value="1080">1080p</option></select></label>
+        <label class="field">File type<select id="exportFormat">
+          <option value="webm">Video · WebM</option>
+          <option value="mp4">Video · MP4</option>
+          <option value="wav">Audio only · WAV</option>
+          <option value="mp3">Audio only · MP3</option>
+          <option value="srt">Subtitles only · SRT</option>
+        </select></label>
+        <div class="checks">
+          <label class="check"><input type="checkbox" id="burnSubs"> Subtitles in the picture</label>
+          <label class="check"><input type="checkbox" id="titleCard"> Title card</label>
+          <label class="check"><input type="checkbox" id="endCard"> End card</label>
+          <label class="check"><input type="checkbox" id="withVoice" checked> Include voiceover</label>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn btn-primary accent" id="exportBtn">Export</button>
+        <button class="btn btn-outline" id="srtBtn">Download .srt</button>
+        <button class="btn btn-outline hidden" id="cancelBtn">Cancel</button>
+      </div>
+      <div class="progress hidden" id="progress"><div class="bar"><div id="barFill"></div></div><p class="muted" id="progressText" aria-live="polite"></p></div>
+      <div id="results" class="results" aria-live="polite"></div>
+    </section>
+  </div>
+</main>
+
+<footer class="foot">© Design to Cost · Video &amp; Voice Studio · runs in your browser; your API key never leaves it except to call ElevenLabs.</footer>
+
+<dialog id="settings" aria-labelledby="h-settings">
+  <form method="dialog" class="dialog-body">
+    <h2 id="h-settings">Settings</h2>
+    <fieldset>
+      <legend>ElevenLabs</legend>
+      <label class="field">API key <span class="inline"><input type="password" id="elevenKey" autocomplete="off" spellcheck="false" placeholder="sk_…"><button type="button" class="icon-btn small" id="showKey" aria-label="Show or hide the key">👁</button></span></label>
+      <label class="field">Model<select id="elevenModel"><option value="eleven_multilingual_v2">Multilingual v2 (best)</option><option value="eleven_flash_v2_5">Flash v2.5 (fast, cheaper)</option><option value="eleven_turbo_v2_5">Turbo v2.5</option></select></label>
+      <p class="muted">Stored only in this browser (localStorage). Never saved in project files.</p>
+    </fieldset>
+    <fieldset>
+      <legend>Local voice server</legend>
+      <label class="field">Server URL<input id="localUrl" placeholder="http://localhost:8000"></label>
+      <label class="field">API key (optional)<input type="password" id="localKey" autocomplete="off"></label>
+      <p class="muted">Any OpenAI-compatible <code>/v1/audio/speech</code> server. The Design to Cost app (<code>start_windows.bat</code>) provides one with Kokoro / Piper voices.</p>
+    </fieldset>
+    <fieldset>
+      <legend>MP4 / MP3 converter</legend>
+      <label class="field">ffmpeg.wasm core URL (blank = jsDelivr)<input id="ffmpegBase" placeholder="https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm"></label>
+    </fieldset>
+    <div class="row end">
+      <button type="button" class="btn btn-outline" id="clearKeys">Forget keys</button>
+      <button class="btn btn-primary" id="saveSettings" value="save">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
