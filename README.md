@@ -1,5 +1,7 @@
 # Design to Cost — Presentation & Video Studio
 
+**Version:** see `VERSION` (currently 1.2.0) · **Changes:** `CHANGELOG.md`
+
 A free, open-source app for **Design to Cost** that runs **offline on your Windows laptop**. It turns screenshots and notes (or an existing PowerPoint) into:
 
 - a **branded PowerPoint** in the Design to Cost theme (navy `#152238`, blue `#1f5fa8`, orange `#e07b1f`, Segoe UI, DC logo), with the narration in the speaker notes
@@ -113,6 +115,48 @@ After setup you can switch off the internet. Everything works offline.
 | **5. Build** | Music (auto-ducks under the voice) and logo intro/outro on/off. The **length meter** shows minutes used out of **15:00**, plus the **estimated render time** for your laptop. Then **Build PowerPoint** and **Render video**.<br>Under **Social formats & short clips**, pick Reels 9:16, square 1:1 or YouTube 16:9, optionally a slide range (e.g. slides 3–4 = a short clip), and subtitles burned into the picture. |
 
 Your work is saved automatically in `projects\<project-name>\`.
+
+---
+
+## Versions, updates and backups
+
+**Your version** is shown in the app header (e.g. *v1.2.0*), in the studio footer and in the black
+start-up window. The number lives in the file `VERSION`. **What changed** in each version is in
+`CHANGELOG.md`.
+
+Everything stays inside your app folder (e.g. `D:\DTC-Studio`):
+
+| Folder | What is in it |
+|---|---|
+| `projects\` | your work (slides, recordings, finished videos in `projects\<name>\out`) |
+| `backups\` | backup ZIPs, one per backup, named with the version and the date |
+| `updates\` | update ZIPs (installed ones move to `updates\installed`) |
+
+### Back up (any time)
+Double-click **`backup_windows.bat`**. It creates
+`backups\DTC-Studio-backup_v1.2.0_2026-11-01_1530.zip` with your projects and this version of the
+app. The big folders (`.venv`, `.venv-clone`, `models`) are skipped because they can be downloaded again.
+- **Copy to another drive:** run `backup_windows.bat E:\MyBackups` from cmd.
+- **Restore:** unzip the backup and copy its `projects` folder back into the app folder. To go back to an older app version, use the whole unzipped folder.
+
+### Update to a new version
+Double-click **`update_windows.bat`**. It will:
+1. **Back up first**, automatically.
+2. **Get the new version:** it takes the ZIP you placed in `updates\`, or else downloads the latest
+   release from GitHub. If the repository is private, download the ZIP in your browser (GitHub →
+   **Releases** → `DTC-Studio.zip`, or **Code → Download ZIP**), put it in `updates\`, and run it again.
+3. **Copy the new files** over the old ones. Your `projects`, `models`, `.venv` and settings are not touched.
+4. **Install any new Python packages.**
+
+### Making a new version (for whoever changes the code)
+1. Change the code.
+2. Raise the number in `VERSION`:
+   - 1.2.0 → **1.2.1** for a fix;
+   - → **1.3.0** for new features;
+   - → **2.0.0** for big changes.
+3. Add a section at the top of `CHANGELOG.md`, e.g. `## 1.2.1 — 2026-11-15`, with what changed.
+4. Merge to `main`. GitHub then creates the release **v1.2.1** with a `DTC-Studio.zip` download
+   (workflow `release.yml`), and the tests check that `VERSION` and `CHANGELOG.md` match.
 
 ---
 

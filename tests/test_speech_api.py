@@ -54,3 +54,12 @@ def test_studio_route_served():
     assert c.get("/studio").status_code == 301
     r = c.get("/studio/")
     assert r.status_code == 200 and b"Video &amp; Voice Studio" in r.data
+
+
+def test_version_everywhere():
+    c = client()
+    v = (Path(__file__).resolve().parent.parent / "VERSION").read_text().strip()
+    assert c.get("/api/system").get_json()["version"] == v
+    assert c.get("/studio/VERSION").data.decode() == v
+    assert f"v{v}".encode() in c.get("/").data
+    assert f"## {v} " in (Path(__file__).resolve().parent.parent / "CHANGELOG.md").read_text()

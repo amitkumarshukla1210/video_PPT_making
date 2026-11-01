@@ -778,12 +778,24 @@ function bind() {
   window.addEventListener("pagehide", () => store.saveNow());
 }
 
+/** VERSION is copied next to the page when published, and served by the local app at /studio/VERSION. */
+async function showVersion() {
+  try {
+    const res = await fetch("VERSION", { cache: "no-store" });
+    const v = res.ok ? (await res.text()).trim() : "";
+    if (/^\d+\.\d+\.\d+/.test(v)) $("#appVersion").textContent = ` · version ${v}`;
+  } catch {
+    /* offline copy without a VERSION file: just don't show it */
+  }
+}
+
 async function init() {
   applyTheme();
   renderEngines();
   renderTemplates();
   bind();
   render("init");
+  showVersion();
   await loadVoiceList({ quiet: true });
   document.body.dataset.ready = "true"; // for tests
 }

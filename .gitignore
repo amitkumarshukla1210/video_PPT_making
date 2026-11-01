@@ -23,3 +23,5 @@ test-results/
 playwright-report/
 tests/.cache/
 .pytest_cache/
+updates/
+backups/

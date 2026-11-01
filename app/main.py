@@ -11,6 +11,7 @@ from werkzeug.utils import secure_filename
 from . import jobs, media, project as P, tts
 from .config import HOST, PORT, MAX_VIDEO_SECONDS, APP_NAME, MODULE_NAME, ROOT
 from .speech_api import bp as speech_bp
+from .version import app_version
 from .ffmpeg_utils import best_encoder, ENCODERS
 from .ppt_builder import build_pptx
 from .ppt_import import import_pptx
@@ -66,7 +67,7 @@ def _err(e):
 
 @app.get("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", version=app_version())
 
 
 @app.get("/studio")
@@ -80,6 +81,11 @@ def studio_home():
     return send_from_directory(STUDIO_DIR, "studio.html")
 
 
+@app.get("/studio/VERSION")
+def studio_version():
+    return Response(app_version(), mimetype="text/plain")
+
+
 @app.get("/studio/<path:sub>")
 def studio_files(sub):
     return send_from_directory(STUDIO_DIR, sub)
@@ -91,7 +97,7 @@ def system():
     import qrcode.image.svg
     url = f"http://{lan_ip()}:{PORT}"
     qr = qrcode.make(url, image_factory=qrcode.image.svg.SvgPathImage).to_string(encoding="unicode")
-    return jsonify(engines=tts.status(), default_engine=tts.default_engine(),
+    return jsonify(version=app_version(), engines=tts.status(), default_engine=tts.default_engine(),
                    encoder=ENCODERS[best_encoder()][0], phone_url=url, qr_svg=qr,
                    max_seconds=MAX_VIDEO_SECONDS, presets={k: v[0] for k, v in PRESETS.items()})
 
@@ -390,7 +396,7 @@ def files(pid, sub):
 def run():
     from waitress import serve
     url = f"http://{lan_ip()}:{PORT}"
-    print(f"\n  {APP_NAME} — {MODULE_NAME}")
+    print(f"\n  {APP_NAME} — {MODULE_NAME}   version {app_version()}")
     print("  ------------------------------------------------")
     print(f"  On this laptop : http://localhost:{PORT}")
     print(f"  On your phone  : {url}   (same Wi-Fi)")

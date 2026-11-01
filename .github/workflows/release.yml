@@ -1,0 +1,44 @@
+# Publishes a numbered release when the VERSION file changes on main:
+# tag vX.Y.Z + a "DTC-Studio.zip" download (used by update_windows.bat) + notes from CHANGELOG.md.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: [VERSION]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version
+        id: v
+        run: |
+          v="$(tr -d '[:space:]' < VERSION)"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          if git rev-parse "v$v" >/dev/null 2>&1; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Build the download and release notes
+        if: steps.v.outputs.exists == 'false'
+        run: |
+          v="${{ steps.v.outputs.version }}"
+          git archive --format=zip --prefix="DTC-Studio-v$v/" -o DTC-Studio.zip HEAD
+          # the section of CHANGELOG.md for this version
+          awk -v ver="$v" '/^## /{p = index($0, "## " ver " ") == 1} p' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "Version $v" > notes.md
+
+      - name: Create release v${{ steps.v.outputs.version }}
+        if: steps.v.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="${{ steps.v.outputs.version }}"
+          gh release create "v$v" DTC-Studio.zip --title "Design to Cost Studio $v" --notes-file notes.md --target "$GITHUB_SHA"

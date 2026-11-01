@@ -214,6 +214,8 @@ def test_page_loads_and_is_accessible(studio):
     unnamed = p.evaluate("""() => [...document.querySelectorAll('button')].filter(b => b.offsetParent &&
         !(b.getAttribute('aria-label') || b.textContent.trim())).length""")
     assert unnamed == 0
+    version = (ROOT / "VERSION").read_text().strip()
+    p.wait_for_function("v => document.querySelector('#appVersion').textContent.includes(v)", arg=version)
     # headings are left-aligned
     assert p.evaluate("() => getComputedStyle(document.querySelector('h2')).textAlign") in ("left", "start")
 
