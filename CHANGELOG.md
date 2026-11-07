@@ -6,10 +6,17 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.3.0 — 2026-11-04
+- Refresh both workspaces with a branded home prompt, sidebar navigation, and task-specific entry points while preserving the Design to Cost logo and product name.
+- Add an original ready-to-try sample picture and narrated-video workflow in the main app and Video & Voice Studio.
+- Make the Studio offline-first: remove hosted voice services, API-key fields, and configurable remote TTS endpoints. Only the local app voice server can generate exportable narration; built-in browser voices remain preview-only.
+- Ask before downloading the optional MP4/MP3 converter; WebM, WAV, and subtitles remain available without it.
+- Document unavailable offline categories and update the end-to-end coverage for the sample voice-over export.
+
 ## 1.2.0 — 2026-11-01
 - **New: Video & Voice Studio** web page (`/studio/`, also hostable on GitHub Pages):
   - 5 templates; script → scenes.
-  - Voices: ElevenLabs, browser voices or the local voice server.
+  - Voices: browser preview or the local voice server.
   - Exports: WebM, MP4, WAV, MP3 and SRT; 10-minute limit.
 - New: OpenAI-compatible speech endpoint `/v1/audio/speech` in the local app.
 - New: software version shown in the app, plus `backup_windows.bat` and `update_windows.bat`.

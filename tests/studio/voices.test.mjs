@@ -1,13 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { elevenlabs, API } from "../../studio/js/voices/elevenlabs.js";
-import { local } from "../../studio/js/voices/local.js";
+import { DEFAULT_URL, local } from "../../studio/js/voices/local.js";
 import { webspeech } from "../../studio/js/voices/webspeech.js";
-import { audioKey, loadPresets, savePreset, deletePreset, sceneVoice, loadSettings } from "../../studio/js/voices/index.js";
+import { audioKey, ENGINES, loadPresets, savePreset, deletePreset, sceneVoice, loadSettings } from "../../studio/js/voices/index.js";
 import { encodeWav } from "../../studio/js/render/audio.js";
 
-const settings = { elevenKey: "test-key", localUrl: "http://localhost:9999/" };
-const voice = { engine: "elevenlabs", voiceId: "v1", speed: 1.5, stability: 0.4, similarity: 0.9 };
+const settings = {};
+const voice = { engine: "local", voiceId: "kokoro:af_heart", speed: 1.5 };
 
 function fakeFetch(status, body, type = "application/json") {
   const calls = [];
@@ -20,45 +19,23 @@ function fakeFetch(status, body, type = "application/json") {
   return fn;
 }
 
-test("ElevenLabs request shape: key header, voice id, clamped settings", async () => {
-  const f = fakeFetch(200, new Uint8Array([1, 2, 3]), "audio/mpeg");
-  const blob = await elevenlabs.synthesize("Hello", voice, settings, { fetchImpl: f });
-  assert.equal(blob.size, 3);
-  const { url, opts } = f.calls[0];
-  assert.equal(url, `${API}/text-to-speech/v1?output_format=mp3_44100_128`);
-  assert.equal(opts.headers["xi-api-key"], "test-key");
-  const body = JSON.parse(opts.body);
-  assert.equal(body.voice_settings.speed, 1.2);
-  assert.equal(body.voice_settings.similarity_boost, 0.9);
+test("the Studio exposes only built-in preview and local synthesis engines", () => {
+  assert.deepEqual(Object.keys(ENGINES).sort(), ["local", "webspeech"]);
+  const saved = loadSettings({ getItem: () => JSON.stringify({ theme: "dark", remoteAccessToken: "old-secret", localAccessToken: "old-secret" }) });
+  assert.deepEqual(saved, { theme: "dark" });
 });
 
-test("ElevenLabs errors become friendly VoiceErrors", async () => {
-  const cases = [
-    [401, { detail: { status: "invalid_api_key", message: "Invalid API key" } }, "auth"],
-    [401, { detail: { status: "quota_exceeded", message: "This request exceeds your quota" } }, "quota"],
-    [429, { detail: { status: "too_many_concurrent_requests" } }, "quota"],
-    [500, "oops", "server"],
-  ];
-  for (const [status, body, code] of cases) {
-    await assert.rejects(elevenlabs.synthesize("x", voice, settings, { fetchImpl: fakeFetch(status, body) }), (e) => e.name === "VoiceError" && e.code === code && e.fallback === true);
-  }
-  await assert.rejects(elevenlabs.synthesize("x", voice, settings, { fetchImpl: async () => { throw new TypeError("Failed to fetch"); } }), (e) => e.code === "network");
-  await assert.rejects(elevenlabs.synthesize("x", voice, { elevenKey: "" }), (e) => e.code === "auth");
-});
-
-test("ElevenLabs voice list mapping", async () => {
-  const f = fakeFetch(200, { voices: [{ voice_id: "a", name: "Rachel", labels: { gender: "female", accent: "american" } }] });
-  const list = await elevenlabs.listVoices(settings, f);
-  assert.deepEqual(list, [{ id: "a", name: "Rachel", lang: "american", gender: "female" }]);
-});
-
-test("local server: OpenAI-compatible request, voice list and 404 fallback", async () => {
+test("local server: requests stay on localhost and return voice list and audio", async () => {
   const f = fakeFetch(200, new Uint8Array(100), "audio/wav");
   await local.synthesize("Hi", { voiceId: "kokoro:af_heart", speed: 1.1 }, settings, { fetchImpl: f });
-  assert.equal(f.calls[0].url, "http://localhost:9999/v1/audio/speech");
+  assert.equal(f.calls[0].url, `${DEFAULT_URL}/v1/audio/speech`);
+  assert.deepEqual(Object.keys(f.calls[0].opts.headers), ["Content-Type"]);
   assert.deepEqual(JSON.parse(f.calls[0].opts.body), { model: "tts-1", input: "Hi", voice: "kokoro:af_heart", speed: 1.1, response_format: "wav" });
-  const list = await local.listVoices(settings, fakeFetch(200, { voices: [{ id: "kokoro:af_heart", name: "Heart" }] }));
+  const listFetch = fakeFetch(200, { voices: [{ id: "kokoro:af_heart", name: "Heart" }] });
+  const list = await local.listVoices({ voiceServiceUrl: "https://example.invalid", accessToken: "secret" }, listFetch);
   assert.equal(list[0].id, "kokoro:af_heart");
+  assert.equal(listFetch.calls[0].url, `${DEFAULT_URL}/v1/audio/voices`);
+  assert.equal(f.calls[0].url.startsWith("http://localhost:"), true);
   const fallback = await local.listVoices(settings, fakeFetch(404, { error: "nope" }));
   assert.ok(fallback.some((v) => v.id === "alloy"));
   await assert.rejects(local.synthesize("Hi", {}, settings, { fetchImpl: fakeFetch(200, new Uint8Array(0), "audio/wav") }), /empty audio/);
@@ -90,7 +67,7 @@ test("voice presets: save, replace, delete; per-scene override", () => {
   const project = { voice: { engine: "local", voiceId: "a", speed: 1 } };
   assert.equal(sceneVoice(project, { voice: null }).voiceId, "a");
   assert.equal(sceneVoice(project, { voice: { voiceId: "b" } }).voiceId, "b");
-  assert.equal(loadSettings({ getItem: () => "{broken" }).localUrl, "http://localhost:8000");
+  assert.equal(loadSettings({ getItem: () => "{broken" }).theme, "auto");
 });
 
 test("WAV encoder writes a valid header and clamps samples", () => {

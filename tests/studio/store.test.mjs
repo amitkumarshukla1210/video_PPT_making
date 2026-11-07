@@ -77,9 +77,9 @@ test("project JSON round trip and validation", () => {
   assert.equal(fixed.template, "explainer");
 });
 
-test("API keys are never part of a project", () => {
+test("saved projects contain no credential fields", () => {
   const mem = memStorage();
   const s = new Store(mem);
   s.saveNow();
-  assert.doesNotMatch(mem.m.get(STORAGE_KEY), /elevenKey|xi-api-key|sk_/);
+  assert.doesNotMatch(mem.m.get(STORAGE_KEY), /apiKey|secret|token/i);
 });

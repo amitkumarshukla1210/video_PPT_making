@@ -198,7 +198,7 @@ function renderVoicePanel() {
   const ready = engine.ready(settings);
   $("#engineNote").textContent = !ready.ok ? ready.reason
     : engine.canExport ? `${engine.label}: voices are saved into your video and audio files.`
-      : "Browser voices are free and offline but can only be previewed. For a video or audio file choose the local voice server or ElevenLabs — or untick “Include voiceover” to export without a voice.";
+      : "Browser voices can only be previewed. Start the local Design to Cost app and choose its voice server for narrated exports, or untick “Include voiceover”.";
   renderPresets();
 }
 
@@ -459,6 +459,10 @@ async function runExport() {
   if (fmt === "srt") return download(new Blob([toSrt(buildTimeline(p).captions)], { type: "application/x-subrip" }), `${slug()}.srt`);
   const tl = buildTimeline(p);
   if (tl.overLimit) return toast(`Over the ${MAX_SECONDS / 60}-minute limit — shorten the video first.`, true);
+  const needsConverter = fmt === "mp3" || (fmt === "mp4" && !MediaRecorder.isTypeSupported("video/mp4"));
+  if (needsConverter && !confirm("This export needs the optional ffmpeg.wasm converter (about 31 MB), which will be downloaded from jsDelivr only if you approve. Continue?")) {
+    return toast("Export cancelled. WebM video and WAV audio export without the converter.");
+  }
   if (player.playing) stop();
   clearResults();
   const ctrl = new AbortController();
@@ -485,6 +489,44 @@ async function runExport() {
   } finally {
     setBusy(null);
     drawIdle();
+  }
+}
+
+async function runNarratedSample() {
+  if (store.project.scenes.length && !confirm("Replace the current Studio project with the ready-to-try sample?")) return;
+  const button = $("#demoBtn");
+  button.disabled = true;
+  try {
+    stop();
+    clearResults();
+    releaseUrls();
+    store.replace(newProject("explainer"), "new");
+    const script = "# A clearer starting point\nGood product decisions begin with a shared view of cost.\n\n# See the whole picture\nBring material, process and supplier details together before the design is fixed.\n\n# Decide with confidence\nCompare options early, make trade-offs visible, and keep the team aligned.";
+    store.update((p) => {
+      p.title = "Cost clarity — sample";
+      p.voice.engine = "local";
+      p.cards.title = false;
+      p.cards.end = true;
+      p.format.aspect = "16:9";
+      p.format.height = 720;
+    }, { reason: "meta" });
+    store.splitFromScript(script);
+    const response = await fetch(new URL("../assets/sample-cost-story.svg", import.meta.url));
+    if (!response.ok) throw new Error("The included sample picture could not be loaded.");
+    const mediaId = await putMedia(await response.blob(), "image");
+    const first = store.project.scenes[0];
+    store.editScene(first.id, { background: { kind: "image", color: "#152238", mediaId } });
+    await loadVoiceList();
+    if (!voiceList.length) throw new Error("The local voice server is not available. Start the Design to Cost app, then try the narrated sample again.");
+    $("#exportFormat").value = "webm";
+    $("#withVoice").checked = true;
+    await prepareVoices(store, settings, { onProgress: progress });
+    render("voice");
+    await runExport();
+  } catch (e) {
+    voiceFailure(e);
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -557,6 +599,7 @@ function bind() {
     const tpl = getTemplate(store.project.template);
     store.update((p) => (p.script = tpl.sample), { reason: "meta" });
   });
+  $("#demoBtn").addEventListener("click", runNarratedSample);
   $("#addSceneBtn").addEventListener("click", () => {
     store.update((p) => p.scenes.push(makeScene({ text: "" }, getTemplate(p.template), p.scenes.length)), { reason: "add" });
     document.querySelector("#scenes .scene:last-child textarea")?.focus();
@@ -725,41 +768,6 @@ function bind() {
     settings.theme = dark ? "light" : "dark";
     saveSettings(settings);
     applyTheme();
-  });
-
-  // settings dialog
-  const dlg = $("#settings");
-  $("#settingsBtn").addEventListener("click", () => {
-    $("#elevenKey").value = settings.elevenKey;
-    $("#elevenModel").value = settings.elevenModel;
-    $("#localUrl").value = settings.localUrl;
-    $("#localKey").value = settings.localKey;
-    $("#ffmpegBase").value = settings.ffmpegBase;
-    dlg.showModal();
-  });
-  $("#showKey").addEventListener("click", () => {
-    const i = $("#elevenKey");
-    i.type = i.type === "password" ? "text" : "password";
-  });
-  $("#clearKeys").addEventListener("click", () => {
-    $("#elevenKey").value = "";
-    $("#localKey").value = "";
-  });
-  // Save on the click itself: the dialog's "close" event arrives a moment later in newer browsers,
-  // and anything done in between must already see the new settings.
-  $("#saveSettings").addEventListener("click", () => {
-    settings = {
-      ...settings,
-      elevenKey: $("#elevenKey").value.trim(),
-      elevenModel: $("#elevenModel").value,
-      localUrl: $("#localUrl").value.trim(),
-      localKey: $("#localKey").value.trim(),
-      ffmpegBase: $("#ffmpegBase").value.trim(),
-    };
-    saveSettings(settings);
-    toast("Settings saved in this browser.");
-    // with an online engine selected, show a wrong key / unreachable server straight away
-    loadVoiceList({ quiet: store.project.voice.engine === "webspeech" });
   });
 
   // keyboard shortcuts
