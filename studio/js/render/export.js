@@ -1,7 +1,7 @@
 // Export pipeline: generate missing voice clips, load media, record the canvas in real time,
 // convert if needed, and clean up afterwards.
 import { ENGINES, audioKey, sceneVoice, VoiceError } from "../voices/index.js";
-import { getMedia, putMedia, deleteMedia, mediaUrl, releaseUrls } from "../media.js";
+import { getMedia, putMedia, deleteMedia } from "../media.js";
 import { buildTimeline, MAX_SECONDS } from "../timeline.js";
 import { drawFrame, frameSize, syncVideos } from "./draw.js";
 import { decodeBlob, scheduleAudio, mixOffline, audioBufferToWav } from "./audio.js";
@@ -26,7 +26,7 @@ export async function prepareVoices(store, settings, { onProgress, signal, only 
     const voice = sceneVoice(store.project, scene);
     const engine = ENGINES[voice.engine];
     if (!engine?.canExport) {
-      throw new VoiceError("unsupported", `“${engine?.label || voice.engine}” can only preview. Pick the local voice server or ElevenLabs in Voice to make a video or audio file.`, { fallback: false });
+      throw new VoiceError("unsupported", `“${engine?.label || voice.engine}” can only preview. Start the local Design to Cost app and choose its voice server to include narration in an export.`, { fallback: false });
     }
     onProgress?.(done / todo.length, `Voice ${done + 1}/${todo.length}: ${scene.title || "scene"}`);
     const blob = await engine.synthesize(scene.text, voice, settings, { signal });
@@ -69,21 +69,28 @@ function loadVideo(url) {
 /** Images/videos/logo used by the draw functions. */
 export async function loadAssets(project, logoUrl) {
   const media = new Map();
-  for (const s of project.scenes) {
-    const id = s.background?.mediaId;
-    if (!id || media.has(id) || s.background.kind === "color") continue;
-    const blob = await getMedia(id);
-    if (!blob) continue;
-    const url = await mediaUrl(id);
-    media.set(id, blob.type.startsWith("video/") ? await loadVideo(url) : await loadImage(url));
-  }
-  let logo = null;
+  const mediaUrls = new Set();
   try {
-    logo = await loadImage(logoUrl);
-  } catch {
-    logo = null;
+    for (const s of project.scenes) {
+      const id = s.background?.mediaId;
+      if (!id || media.has(id) || s.background.kind === "color") continue;
+      const blob = await getMedia(id);
+      if (!blob) continue;
+      const url = URL.createObjectURL(blob);
+      mediaUrls.add(url);
+      media.set(id, blob.type.startsWith("video/") ? await loadVideo(url) : await loadImage(url));
+    }
+    let logo = null;
+    try {
+      logo = await loadImage(logoUrl);
+    } catch {
+      logo = null;
+    }
+    return { media, mediaUrls, logo };
+  } catch (error) {
+    for (const url of mediaUrls) URL.revokeObjectURL(url);
+    throw error;
   }
-  return { media, logo };
 }
 
 export function disposeAssets(assets) {
@@ -95,7 +102,8 @@ export function disposeAssets(assets) {
     }
   }
   assets?.media?.clear();
-  releaseUrls();
+  for (const url of assets?.mediaUrls || []) URL.revokeObjectURL(url);
+  assets?.mediaUrls?.clear();
 }
 
 export async function loadAudio(project) {
@@ -161,6 +169,8 @@ export async function recordVideo(project, settings, { container = "webm", onPro
 
   drawFrame(ctx, project, timeline, 0, assets);
   const t0 = audio.currentTime + 0.25;
+  // MediaRecorder timestamps video against wall time, so use the same clock for the frame timeline.
+  const wallStart = performance.now() + 250;
   const sched = scheduleAudio(audio, dest, timeline, voices, music, project, t0);
   rec.start(1000);
   let cancelled = false;
@@ -174,7 +184,7 @@ export async function recordVideo(project, settings, { container = "webm", onPro
           reject(new DOMException("Cancelled", "AbortError"));
           return;
         }
-        const t = Math.max(0, audio.currentTime - t0); // audio clock keeps picture and sound in sync
+        const t = Math.max(0, (performance.now() - wallStart) / 1000);
         syncVideos(project, timeline, t, assets, true);
         drawFrame(ctx, project, timeline, Math.min(t, timeline.total - 0.001), assets);
         if (pctx) pctx.drawImage(canvas, 0, 0, pctx.canvas.width, pctx.canvas.height);

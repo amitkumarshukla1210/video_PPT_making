@@ -1,6 +1,6 @@
 # Design to Cost — Presentation & Video Studio
 
-**Version:** see `VERSION` (currently 1.2.0) · **Changes:** `CHANGELOG.md`
+**Version:** see `VERSION` · **Changes:** `CHANGELOG.md`
 
 A free, open-source app for **Design to Cost** that runs **offline on your Windows laptop**. It turns screenshots and notes (or an existing PowerPoint) into:
 
@@ -16,25 +16,27 @@ You can use it from the laptop's browser or from your **phone's browser over hom
 
 ---
 
-## Video & Voice Studio (web page, no install needed)
+## Video & Voice Studio (offline-first)
 
-A second tool in this repo: a **browser page** that turns a script into a narrated video or an audio
-piece. It runs fully in the browser, so it can be hosted for free on GitHub Pages.
+A browser workspace that turns a script into a narrated video or an audio piece. Editing, preview,
+media storage, and WebM/WAV/SRT export run locally in the browser. The Studio uses the app's local
+voice server for exportable narration; it does not connect to paid voice APIs or request API keys.
 
-**Live URL** (after the one-time Pages setup below): `https://<user>.github.io/<repo>/studio.html`
-— for this repo: **https://amitkumarshukla1210.github.io/video_PPT_making/studio.html**
+It is served locally at `http://localhost:8000/studio/`. A static copy can also be hosted on GitHub
+Pages, but local voice-over export then requires the Design to Cost app to be running on the same
+computer.
 
 ### Features
 - **5 templates:** Inspiration, Film trailer, Explainer, Product video and Audio documentary. Each sets the scene structure, default lengths, text style, transition, music mood and voice pacing.
 - **Workflow:** choose a template → write or paste a script → **Split into scenes**. You can then edit, add, reorder (↑↓) and delete scenes, give each one a colour, image or video background, and set its length.
 - **Voice engines** (switchable):
-  - **Browser / Windows voices** — free and offline, but **preview only**: browsers don't give the audio to the page, so it can't go into a file.
-  - **Local voice server** — this repo's app (Kokoro / Piper / eSpeak) or any OpenAI-compatible `/v1/audio/speech` server.
-  - **ElevenLabs** — with your own API key, kept only in this browser.
-- **Voice controls:** voice list, speed, pitch (browser voices), stability and similarity (ElevenLabs).
+  - **Browser / Windows voices** — preview only; browsers do not expose this audio for export.
+  - **Local voice server** — this app's installed Kokoro / Piper / eSpeak / Windows voices. The page only contacts `localhost`.
+- **Voice controls:** local voice list and speed; browser preview voices also expose pitch.
   - You can preview and regenerate one scene at a time, or give a scene its own voice.
   - A **voice library** saves named presets.
-  - Errors (wrong key, quota used up, no internet) show a clear message, and the preview falls back to a browser voice.
+  - If the local server or voice model is unavailable, the Studio reports it and keeps the sample project editable.
+- **Ready-to-try sample:** original bundled sample artwork, script and local voice selection. **Try narrated sample** generates voice clips and exports a real WebM video with the voice-over included.
 - **Video:**
   - 720p or 1080p, in 16:9, 9:16 or 1:1.
   - Fade, slide and zoom transitions, slow pan/zoom on images, and title and end cards with the DC logo.
@@ -44,25 +46,24 @@ piece. It runs fully in the browser, so it can be hosted for free on GitHub Page
 - **Hard limit of 10 minutes:** a meter shows the time left, and export is blocked when the video is too long.
 - **Export formats:**
   - **WebM** (native).
-  - **MP4** — recorded directly where the browser supports it, otherwise converted with ffmpeg.wasm. ffmpeg.wasm is downloaded only when it's needed.
-  - **Audio only:** **WAV** or **MP3**.
+  - **MP4** — recorded directly where the browser supports it, otherwise converted with ffmpeg.wasm after an explicit confirmation to download the optional ~31 MB converter.
+  - **Audio only:** **WAV** offline, or **MP3** after the same optional converter confirmation.
 - **Projects:** autosave in the browser, undo/redo (Ctrl+Z / Ctrl+Y), and Save/Open as a `.json` file that includes your images and music.
 - Dark/light mode, phone and tablet layouts, keyboard and screen-reader friendly.
+- Cloud dubbing, speech-to-text, hosted voice services, and sound-effects generation are not included in this offline build.
 
 ### How to use the studio
 1. Open the page: either the live URL, or **http://localhost:8000/studio/** while `start_windows.bat` is running.
-2. Click a template, then **Use template sample** or paste your own script, then **Split into scenes**.
-3. Under **Voice**, choose the engine:
-   - **Local voice server**: works out of the box when the Design to Cost app is running on this laptop.
-   - **ElevenLabs**: click ⚙ **Settings** and paste your API key.
-4. Click **▶ Play preview**. Then choose the shape, quality and file type, and click **Export**.
+2. Click **Try narrated sample** for an original picture, three-scene script and real voice-over video, or choose a template and write your own script.
+3. Keep the **Local voice server** selected. It works when the Design to Cost app is running on this computer and an offline voice engine is installed.
+4. Click **▶ Play preview**. Then choose the shape, quality and file type, and click **Export**. WebM video, WAV audio and subtitles work without downloading a converter.
 
 ### Voice engine setup
 | Engine | Setup |
 |---|---|
-| Browser / Windows voices | Nothing. Preview only. |
-| Local voice server | Run `start_windows.bat`. The page calls `http://localhost:8000/v1/audio/speech`; the server allows calls from `localhost` and `*.github.io` pages. Another server: ⚙ Settings → *Server URL*. |
-| ElevenLabs | ⚙ Settings → paste your key. It is stored only in this browser (localStorage), sent only to `api.elevenlabs.io`, and never saved in project files or the repo. |
+| Browser / Windows voices | Nothing. Preview only; browser speech cannot be embedded in exports. |
+| Local voice server | Run `start_windows.bat`. The page calls only `http://localhost:8000/v1/audio/speech`; install a voice model separately with the documented setup script if one is not already present. |
+| MP4 / MP3 fallback conversion | Optional. A confirmation appears before downloading the ffmpeg.wasm converter. Declining keeps WebM/WAV/SRT available. |
 
 ### Run locally, and test
 ```
@@ -71,7 +72,7 @@ node --test tests/studio/*.test.mjs     # unit tests (no install)
 python -m pytest -q                     # app + speech API + browser end-to-end tests
 ```
 The end-to-end tests need `pip install playwright` and `python -m playwright install chromium`.
-The MP4/MP3 tests also need the ffmpeg.wasm core in `tests/.cache`; CI does this:
+The MP4/MP3 conversion tests also need the ffmpeg.wasm core in `tests/.cache`; CI does this:
 `cd tests/.cache && npm pack @ffmpeg/core@0.12.10 && mkdir ffmpeg-core && tar xzf ffmpeg-core-0.12.10.tgz -C ffmpeg-core`.
 
 ### Hosting on GitHub Pages (one time)

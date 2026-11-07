@@ -34,7 +34,7 @@ export const webspeech = {
   },
 
   async synthesize() {
-    throw new VoiceError("unsupported", "Browser voices can be previewed but not saved into a video. Choose the local voice server or ElevenLabs for export.", { fallback: false });
+    throw new VoiceError("unsupported", "Browser voices are preview-only. Start the local Design to Cost app and choose its voice server to include narration in exports.", { fallback: false });
   },
 
   /** Speak now. Resolves when finished (or cancelled). */

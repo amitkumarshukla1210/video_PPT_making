@@ -1,8 +1,7 @@
-"""End-to-end tests for the Video & Voice Studio page (studio/studio.html) in Chromium.
+"""End-to-end tests for the offline-first Video & Voice Studio in Chromium.
 
-Every test gets a fresh browser context (empty localStorage / IndexedDB). ElevenLabs and the local
-voice server are mocked with Playwright route interception: no real or paid API is ever called.
-The ffmpeg.wasm core is served from tests/.cache (downloaded once with `npm pack`), never from a CDN.
+Every test gets fresh browser storage. The localhost voice server is mocked; no hosted voice service
+is used. The optional ffmpeg.wasm core is served from tests/.cache for conversion tests.
 """
 import io
 import json
@@ -28,7 +27,6 @@ from app.main import app  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 CORE_DIR = ROOT / "tests" / ".cache" / "ffmpeg-core" / "package" / "dist" / "esm"
 CDN_CORE = re.compile(r"https://cdn\.jsdelivr\.net/npm/@ffmpeg/core@[^/]+/dist/esm/(ffmpeg-core\.(js|wasm))")
-MOCK_TTS = "http://tts.mock"
 TEMPLATES = ["inspiration", "trailer", "explainer", "product", "documentary"]
 
 
@@ -85,21 +83,18 @@ class Studio:
         self.ctx = browser.new_context(viewport=viewport or {"width": 1366, "height": 900}, accept_downloads=True)
         self.page = self.ctx.new_page()
         self.errors = []
-        self.expected_errors = []   # console messages a test provokes on purpose (e.g. a mocked 401)
         self.tts_calls = []
-        self.eleven_calls = []
         self.cdn_requests = []
         self.page.on("pageerror", lambda e: self.errors.append(f"pageerror: {e}"))
-        self.page.on("console", lambda m: self.errors.append(f"console: {m.text}") if m.type == "error" else None)
-        settings = {"localUrl": MOCK_TTS, "theme": "light"}
+        self.page.on("console", lambda m: self.errors.append(f"console: {m.text} ({m.location.get('url', '')})") if m.type == "error" else None)
+        settings = {"theme": "light"}
         init = SPEECH_STUB + f"if (!localStorage.getItem('dtc.studio.settings')) localStorage.setItem('dtc.studio.settings', {json.dumps(json.dumps(settings))});"
         if block_native_mp4:
             init += "const _its = MediaRecorder.isTypeSupported.bind(MediaRecorder); MediaRecorder.isTypeSupported = (t) => !t.startsWith('video/mp4') && _its(t);"
         self.ctx.add_init_script(init)
         self.voice_seconds = voice_seconds
         self.silent_voice = silent_voice
-        self.ctx.route(f"{MOCK_TTS}/**", self._tts)
-        self.ctx.route("https://api.elevenlabs.io/**", self._eleven)
+        self.ctx.route("http://localhost:8000/**", self._tts)
         self.ctx.route(CDN_CORE, self._core)
         self.page.goto(f"{base_url}/studio/")
         self.page.wait_for_selector("body[data-ready=true]")
@@ -119,18 +114,6 @@ class Studio:
         secs = self.voice_seconds or min(3.0, 0.6 + 0.25 * len(body.get("input", "").split()))
         return route.fulfill(status=200, headers=cors, content_type="audio/wav",
                              body=wav_bytes(secs, amp=0.0 if self.silent_voice else 0.3))
-
-    eleven_mode = "invalid_key"
-
-    def _eleven(self, route):
-        if route.request.method == "OPTIONS":   # CORS preflight (newer Chromium sends it to routed requests too)
-            return route.fulfill(status=204, headers={"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*",
-                                                      "Access-Control-Allow-Methods": "GET, POST, OPTIONS"})
-        self.eleven_calls.append(route.request.url)
-        if self.eleven_mode == "invalid_key":
-            return route.fulfill(status=401, content_type="application/json", headers={"Access-Control-Allow-Origin": "*"},
-                                 body=json.dumps({"detail": {"status": "invalid_api_key", "message": "Invalid API key"}}))
-        return route.fulfill(status=200, content_type="application/json", headers={"Access-Control-Allow-Origin": "*"}, body=json.dumps({"voices": []}))
 
     def _core(self, route):
         name = CDN_CORE.match(route.request.url).group(1)
@@ -173,6 +156,8 @@ class Studio:
 
     def export(self, fmt, timeout=120_000):
         self.page.select_option("#exportFormat", fmt)
+        if fmt == "mp3" or (fmt == "mp4" and not self.page.evaluate("() => MediaRecorder.isTypeSupported('video/mp4')")):
+            self.page.once("dialog", lambda dialog: dialog.accept())
         self.page.click("#exportBtn")
         self.page.wait_for_selector("#downloadLink", timeout=timeout)
         with self.page.expect_download() as d:
@@ -201,14 +186,17 @@ def studio(browser, base_url, request):
     opts = getattr(request, "param", {}) or {}
     s = Studio(browser, base_url, **opts)
     yield s
-    errors = [e for e in s.errors if not any(x in e for x in s.expected_errors)]
+    errors = s.errors
     s.close()
     assert not errors, f"console errors: {errors}"
 
 
-def media_seconds(path):
+def media_seconds(path, stream=None):
     """Decoded length (WebM from MediaRecorder has no duration in its header, so decode it)."""
-    r = subprocess.run([ffmpeg_bin(), "-hide_banner", "-i", str(path), "-f", "null", "-"], capture_output=True, text=True)
+    cmd = [ffmpeg_bin(), "-hide_banner", "-i", str(path)]
+    if stream:
+        cmd += ["-map", stream]
+    r = subprocess.run(cmd + ["-f", "null", "-"], capture_output=True, text=True)
     times = re.findall(r"time=(\d+):(\d+):([\d.]+)", r.stderr)
     assert times, r.stderr[-800:]
     h, m, s = times[-1]
@@ -236,6 +224,35 @@ def test_page_loads_and_is_accessible(studio):
     p.wait_for_function("v => document.querySelector('#appVersion').textContent.includes(v)", arg=version)
     # headings are left-aligned
     assert p.evaluate("() => getComputedStyle(document.querySelector('h2')).textAlign") in ("left", "start")
+    assert p.locator("#demoBtn").is_visible()
+    assert "Not included offline" in p.text_content(".side-unavailable")
+    assert not p.locator("#settingsBtn, input[type=password], [data-secret-field]").count()
+
+
+def test_main_creation_prompt_builds_a_branded_project(browser, base_url, tmp_path, monkeypatch):
+    from app import project as project_store
+
+    monkeypatch.setattr(project_store, "PROJECTS_DIR", tmp_path / "projects")
+    page = browser.new_page()
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    try:
+        page.goto(f"{base_url}/")
+        page.wait_for_selector("#app:not(.hidden)")
+        assert page.title() == "Design to Cost — Presentation & Video Studio"
+        assert page.locator(".brand .name").inner_text() == "Design to Cost"
+        brief = "Explain how material choices affect the cost of our new product."
+        page.fill("#creationPrompt", brief)
+        page.click("#createForm button[type=submit]")
+        page.wait_for_function("() => document.querySelectorAll('#slides .slide').length === 3")
+        content = page.locator("#slides .slide:not(.cover)").first
+        assert content.locator("input[data-k=title]").input_value() == "Explain how material choices affect the cost of our new product"
+        assert content.locator("textarea[data-k=notes]").input_value() == brief
+        assert content.locator("textarea[data-k=script]").input_value()
+        assert page.locator(".sidebar-link[href='/studio/']").count() == 1
+        assert not errors, errors
+    finally:
+        page.close()
 
 
 @pytest.mark.parametrize("template", TEMPLATES)
@@ -251,7 +268,7 @@ def test_every_template_exports_a_10_second_video(studio, template, tmp_path):
     out = tmp_path / d.suggested_filename
     d.save_as(out)
     assert out.stat().st_size > 10_000
-    secs, info = media_seconds(out)
+    secs, info = media_seconds(out, "0:v:0")
     assert 9.0 <= secs <= 11.5, secs
     assert "Video: vp" in info and "Audio: opus" in info
     assert len(studio.tts_calls) == 2
@@ -281,28 +298,26 @@ def test_engine_switch_and_voice_list(studio):
     p.select_option("#engine", "webspeech")
     p.wait_for_function("() => document.querySelector('#engineNote').textContent.includes('previewed')")
     assert p.is_visible("#pitchField") and not p.is_visible("#stabilityField")
-    p.select_option("#engine", "elevenlabs")
-    assert p.is_visible("#stabilityField") and p.is_visible("#similarityField")
+    assert p.locator("#engine").locator("option").evaluate_all("(options) => options.map((option) => option.value)") == ["webspeech", "local"]
 
 
-def test_invalid_elevenlabs_key_shows_error_and_falls_back(studio):
+def test_narrated_sample_uses_original_picture_and_local_voice_in_video(studio, tmp_path):
     p = studio.page
-    studio.expected_errors.append("401")          # the browser itself logs the mocked 401 response
-    p.click("#settingsBtn")
-    p.fill("#elevenKey", "sk_wrong_key")
-    p.click("#saveSettings")
-    p.select_option("#engine", "elevenlabs")
-    assert "rejected" in studio.toast(containing="rejected")
-    studio.write_and_split("Hello from the fallback voice.")
-    # the voice list failed, so give the scene a voice id directly and preview it
-    p.evaluate("() => window.__studio.store.update(p => { p.voice.voiceId = 'abc'; })")
-    p.click("#scenes .scene [data-act=say]")
-    p.wait_for_function("() => window.__spoken.length > 0")
-    assert "browser voice instead" in p.text_content("#toast")
-    assert p.evaluate("() => window.__spoken[0]") == "Hello from the fallback voice."
-    assert studio.eleven_calls and all("api.elevenlabs.io" in u for u in studio.eleven_calls)
-    # the key is kept only in this browser's settings, never in the project
-    assert "sk_wrong_key" not in json.dumps(studio.project())
+    p.click("#demoBtn")
+    p.wait_for_function("() => document.querySelectorAll('#scenes .scene').length === 3")
+    p.wait_for_selector("#scenes .scene:first-child .thumb img")
+    assert studio.project()["title"] == "Cost clarity — sample"
+    assert studio.project()["scenes"][0]["background"]["kind"] == "image"
+    p.wait_for_selector("#downloadLink", timeout=120_000)
+    assert len(studio.tts_calls) == 3
+    with p.expect_download() as download:
+        p.click("#downloadLink")
+    out = tmp_path / "sample.webm"
+    download.value.save_as(out)
+    seconds, info = media_seconds(out, "0:v:0")
+    assert out.stat().st_size > 10_000
+    assert seconds >= 8
+    assert "Audio: opus" in info
 
 
 def test_scene_add_edit_reorder_delete_undo_redo(studio):
@@ -321,7 +336,7 @@ def test_scene_add_edit_reorder_delete_undo_redo(studio):
     assert texts() == ["Charlie.", "Bravo.", "Delta."]
     p.click("#undoBtn")
     assert texts() == ["Alpha.", "Charlie.", "Bravo.", "Delta."]
-    p.click("body")
+    p.focus("#redoBtn")
     p.keyboard.press("Control+z")
     assert texts() == ["Alpha.", "Bravo.", "Charlie.", "Delta."]
     p.keyboard.press("Control+y")
