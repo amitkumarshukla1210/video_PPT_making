@@ -7,6 +7,7 @@ Used by the Video & Voice Studio page (studio/studio.html), also when that page 
 GitHub Pages: the browser may call http://localhost from an https page, so CORS and
 Private-Network-Access headers are sent for allowed origins (localhost, LAN, *.github.io, or
 the list in DTC_CORS_ORIGINS)."""
+import json
 import os
 import re
 import subprocess
@@ -23,7 +24,27 @@ MAX_INPUT = 5000
 # OpenAI voice names -> a sensible offline voice
 OPENAI_NAMES = {"alloy": "af_heart", "nova": "af_bella", "shimmer": "bf_emma", "echo": "am_michael",
                 "onyx": "am_adam", "fable": "bm_george"}
-STOCK = ("kokoro", "piper", "sapi", "espeak")   # the clone engine needs a per-project sample, so not offered here
+STOCK = ("kokoro", "piper", "sapi", "espeak")
+# "My cloned voice": the Chatterbox clone, using the newest voice sample recorded in the Presentation app.
+
+
+def my_voice_sample():
+    """Newest voice sample that a Presentation project still uses, or None."""
+    from .project import PROJECTS_DIR
+    best = None
+    for pj in PROJECTS_DIR.glob("*/project.json"):
+        try:
+            rel = json.loads(pj.read_text(encoding="utf-8")).get("voice_sample")
+        except (OSError, ValueError):
+            continue
+        f = pj.parent / rel if rel else None
+        if f and f.is_file() and (best is None or f.stat().st_mtime > best.stat().st_mtime):
+            best = f
+    return best
+
+
+def _clone_ready():
+    return tts.ENGINES["clone"].available()[0] and my_voice_sample() is not None
 
 
 def _origin_allowed(origin):
@@ -67,12 +88,16 @@ def _voices():
         for v in e.voices():
             out.append({"id": f"{name}:{v['id']}", "name": f"{v['label']} ({name})", "lang": v.get("lang", ""),
                         "gender": v.get("gender", ""), "engine": name})
+    if _clone_ready():
+        for v in tts.ENGINES["clone"].voices():
+            out.append({"id": f"clone:{v['id']}", "name": v["label"], "lang": v["lang"], "gender": "", "engine": "clone"})
     return out
 
 
 @bp.get("/v1/audio/voices")
 def voices():
-    return jsonify(voices=_voices(), default_engine=tts.default_engine())
+    return jsonify(voices=_voices(), default_engine=tts.default_engine(),
+                   clone={"installed": tts.ENGINES["clone"].available()[0], "sample": my_voice_sample() is not None})
 
 
 def _resolve(voice):
@@ -82,6 +107,10 @@ def _resolve(voice):
         engine, vid = voice.split(":", 1)
     else:
         engine, vid = tts.default_engine(), OPENAI_NAMES.get(voice.lower(), voice)
+    if engine == "clone" and _clone_ready():
+        langs = {v["id"] for v in tts.ENGINES["clone"].voices()}
+        vid = vid if vid in langs else "en"
+        return "clone", vid, vid
     if engine not in STOCK or not tts.ENGINES[engine].available()[0]:
         engine = tts.default_engine()
     if not engine:
@@ -118,7 +147,8 @@ def speech():
     with tempfile.TemporaryDirectory() as td:
         wav = Path(td) / "speech.wav"
         try:
-            tts.synthesize(engine, text, vid, lang, speed, wav)
+            ref = str(my_voice_sample()) if engine == "clone" else None
+            tts.synthesize(engine, text, vid, lang, speed, wav, ref=ref)
         except Exception as e:  # engine failures are reported, not crashed on
             return _error(500, f"{engine} failed: {e}", "server_error")
         if fmt == "mp3":

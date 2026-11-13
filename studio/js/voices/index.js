@@ -1,18 +1,18 @@
 // Engine registry, settings (localStorage only) and the voice library (named presets).
-import { elevenlabs } from "./elevenlabs.js";
 import { local, DEFAULT_URL } from "./local.js";
 import { webspeech } from "./webspeech.js";
 
 export { VoiceError } from "./errors.js";
-export const ENGINES = { webspeech, local, elevenlabs };
+export const ENGINES = { webspeech, local };
 
 const SETTINGS_KEY = "dtc.studio.settings";
 const PRESETS_KEY = "dtc.studio.voicePresets";
 
 export function loadSettings(storage = globalThis.localStorage) {
-  const defaults = { elevenKey: "", elevenModel: "eleven_multilingual_v2", localUrl: DEFAULT_URL, localKey: "", localModel: "tts-1", ffmpegBase: "", theme: "auto" };
+  const defaults = { theme: "auto" };
   try {
-    return { ...defaults, ...JSON.parse(storage?.getItem(SETTINGS_KEY) || "{}") };
+    const saved = JSON.parse(storage?.getItem(SETTINGS_KEY) || "{}");
+    return { ...defaults, ...(saved && typeof saved === "object" ? { theme: saved.theme } : {}) };
   } catch {
     return defaults;
   }

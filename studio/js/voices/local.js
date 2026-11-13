@@ -5,19 +5,9 @@ import { VoiceError, errorFromResponse, networkError } from "./errors.js";
 const SERVICE = "Local voice server";
 export const DEFAULT_URL = "http://localhost:8000";
 
-function base(settings) {
-  return (settings.localUrl || DEFAULT_URL).replace(/\/+$/, "");
-}
-
-function headers(settings, json = true) {
-  const h = json ? { "Content-Type": "application/json" } : {};
-  if (settings.localKey) h.Authorization = `Bearer ${settings.localKey}`;
-  return h;
-}
-
 export const local = {
   id: "local",
-  label: "Local voice server (Kokoro / Piper)",
+  label: "Local voice server (Kokoro / Piper / eSpeak)",
   canExport: true,
   controls: { speed: true, pitch: false, stability: false, similarity: false },
 
@@ -28,7 +18,7 @@ export const local = {
   async listVoices(settings, fetchImpl = fetch) {
     let res;
     try {
-      res = await fetchImpl(`${base(settings)}/v1/audio/voices`, { headers: headers(settings, false) });
+      res = await fetchImpl(`${DEFAULT_URL}/v1/audio/voices`);
     } catch (e) {
       throw networkError(SERVICE, e);
     }
@@ -45,9 +35,9 @@ export const local = {
   async synthesize(text, voice, settings, { signal, fetchImpl = fetch } = {}) {
     let res;
     try {
-      res = await fetchImpl(`${base(settings)}/v1/audio/speech`, {
+      res = await fetchImpl(`${DEFAULT_URL}/v1/audio/speech`, {
         method: "POST",
-        headers: headers(settings),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: settings.localModel || "tts-1",
           input: text,

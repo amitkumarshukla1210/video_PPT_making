@@ -55,6 +55,81 @@ async function newProject(name) {
   await loadProjects(p.id);
 }
 
+function samplePicture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1280; canvas.height = 720;
+  const ctx = canvas.getContext("2d");
+  const bg = ctx.createLinearGradient(0, 0, 1280, 720);
+  bg.addColorStop(0, "#10243d"); bg.addColorStop(1, "#1f5fa8");
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, 1280, 720);
+  ctx.fillStyle = "rgba(255,255,255,.07)";
+  for (let i = 0; i < 9; i++) ctx.fillRect(690 + i * 54, 170 + (i % 3) * 28, 2, 390);
+  ctx.beginPath(); ctx.arc(1010, 288, 180, 0, Math.PI * 2); ctx.fillStyle = "rgba(224,123,31,.18)"; ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.font = "600 27px Segoe UI, Arial"; ctx.fillText("COST CLARITY", 104, 174);
+  ctx.font = "700 66px Segoe UI, Arial"; ctx.fillText("Better design.", 104, 300); ctx.fillText("Smarter cost.", 104, 382);
+  ctx.fillStyle = "#f4b36e"; ctx.font = "400 27px Segoe UI, Arial"; ctx.fillText("See the full picture before the first build.", 108, 446);
+  ctx.fillStyle = "rgba(255,255,255,.88)";
+  for (let i = 0; i < 4; i++) {
+    const h = 104 + [54, 126, 84, 175][i];
+    ctx.fillRect(784 + i * 92, 580 - h, 42, h);
+  }
+  ctx.fillStyle = "#f4b36e"; ctx.fillRect(784, 588, 366, 4);
+  return new Promise((resolve, reject) => canvas.toBlob((blob) => blob
+    ? resolve(new File([blob], "cost-clarity-sample.png", { type: "image/png" }))
+    : reject(new Error("The sample image could not be created.")), "image/png"));
+}
+
+async function createFromBrief(text, sample = false) {
+  const brief = String(text || "").trim();
+  if (!brief) { toast("Describe what you want to create first.", true); return; }
+  const title = sample ? "Cost clarity — sample" : (brief.split(/[.!?\n]/)[0].trim().slice(0, 64) || "New presentation");
+  const submit = $("#createForm button[type=submit]");
+  busy(submit, true);
+  try {
+    await newProject(title);
+    proj = await api(`/api/projects/${proj.id}`, { method: "PUT", json: {
+      title, subtitle: sample ? "A ready-to-try offline sample" : "Created from your brief",
+    } });
+    if (sample) {
+      proj = await upload(`/api/projects/${proj.id}/screens`, [await samplePicture()]);
+    } else {
+      const fd = new FormData();
+      fd.append("title", title); fd.append("notes", brief);
+      proj = await api(`/api/projects/${proj.id}/screens`, { method: "POST", body: fd });
+    }
+    const content = proj.slides.find((slide) => slide.kind === "content");
+    if (content) {
+      content.title = sample ? "Design with the full cost in view" : title;
+      content.notes = sample
+        ? "Review material and process costs before a product is committed. Compare options early, make trade-offs visible, and keep the whole team aligned."
+        : brief;
+      content.script = sample
+        ? "Good decisions start with a clear view of cost. Bring material, process, and supplier details together early, then compare options before the design is fixed."
+        : "";
+    }
+    proj = await api(`/api/projects/${proj.id}`, { method: "PUT", json: {
+      title, slides: proj.slides.map(({ id, title: slideTitle, notes, script }) => ({ id, title: slideTitle, notes, script })),
+    } });
+    if (!sample) {
+      proj = await api(`/api/projects/${proj.id}/script`, { method: "POST", json: { overwrite: false } });
+    }
+    render();
+    $("#s-slides").scrollIntoView({ behavior: "smooth", block: "start" });
+    if (sample) {
+      try {
+        await api(`/api/projects/${proj.id}/render`, { method: "POST" });
+        $("#s-build").scrollIntoView({ behavior: "smooth", block: "start" });
+        checkJob();
+        toast("Sample video is rendering with its local voice-over.");
+      } catch (err) {
+        toast(`Sample project is ready, but video rendering could not start: ${err.message}`, true);
+      }
+    } else toast("Project created from your brief. Review the slide and narration, then continue.");
+  } catch (err) {
+    toast(err.message, true);
+  } finally { busy(submit, false); }
+}
+
 async function openProject(id) {
   proj = await api(`/api/projects/${id}`);
   try { localStorage.setItem("dtc.project", id); } catch (e) { /* ignore */ }
@@ -254,6 +329,26 @@ function bind() {
   $("#projectSelect").onchange = (e) => openProject(e.target.value);
   $("#newProject").onclick = () => newProject();
   $("#phoneBtn").onclick = () => $("#phonePanel").classList.toggle("hidden");
+  $("#createForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    createFromBrief($("#creationPrompt").value);
+  });
+  document.querySelectorAll("[data-prompt]").forEach((button) => {
+    button.onclick = () => {
+      $("#creationPrompt").value = button.dataset.prompt;
+      $("#creationPrompt").focus();
+    };
+  });
+  $("#sampleProject").onclick = () => createFromBrief(
+    "Show how designing with material, process and supplier costs in view helps teams make better product decisions.",
+    true,
+  );
+  document.querySelectorAll(".sidebar-link").forEach((link) => {
+    link.addEventListener("click", () => {
+      document.querySelectorAll(".sidebar-link").forEach((item) => item.classList.remove("active"));
+      link.classList.add("active");
+    });
+  });
   document.querySelectorAll("[data-field]").forEach((el) => (el.oninput = scheduleSave));
 
   $("#slides").addEventListener("input", (e) => {

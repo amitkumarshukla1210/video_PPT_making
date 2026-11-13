@@ -10,19 +10,25 @@
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+<aside class="app-sidebar" aria-label="Main navigation">
+  <a class="sidebar-brand" href="#s-home"><img src="/static/logo.png" alt=""><span>Design to Cost</span></a>
+  <div class="sidebar-label">Workspace</div>
+  <a class="sidebar-link active" href="#s-home"><span>⌂</span> Home</a>
+  <a class="sidebar-link" href="#s-project"><span>▤</span> Presentation</a>
+  <a class="sidebar-link" href="#s-voice"><span>♫</span> Voice-over</a>
+  <a class="sidebar-link" href="#s-slides"><span>▧</span> Images &amp; slides</a>
+  <a class="sidebar-link" href="#s-build"><span>▣</span> Video &amp; export</a>
+  <a class="sidebar-link" href="/studio/"><span>◉</span> Video &amp; Voice Studio</a>
+  <div class="sidebar-label">Your projects</div>
+  <div class="sidebar-note">Projects and media stay on this device.</div>
+  <div class="sidebar-footer"><span class="offline-dot"></span> Offline-first workspace</div>
+</aside>
 <header>
   <div class="header-inner">
     <a class="brand" href="/">
       <img src="/static/logo.png" alt="Design to Cost logo">
       <span class="brand-text"><span class="name">Design to Cost</span><span class="tagline">Presentation &amp; Video Studio · v{{ version }}</span></span>
     </a>
-    <nav><ul>
-      <li><a href="#s-project">Project</a></li>
-      <li><a href="#s-slides">Slides</a></li>
-      <li><a href="#s-voice">Voice</a></li>
-      <li><a href="#s-presenter">Presenter</a></li>
-      <li><a href="#s-build">Build</a></li>
-    </ul></nav>
     <div class="top-actions">
       <select id="projectSelect" aria-label="Project"></select>
       <button id="newProject" class="btn btn-outline">+ New</button>
@@ -40,6 +46,37 @@
 </header>
 
 <main id="app" class="container hidden">
+
+  <section id="s-home" class="home-workspace">
+    <div class="home-hero">
+      <div class="kicker">Your offline creative workspace</div>
+      <h1>What would you like to create?</h1>
+      <p>Start with a short brief. Turn your product story into slides, narration and a video on this device.</p>
+      <form id="createForm" class="create-prompt">
+        <textarea id="creationPrompt" rows="2" aria-label="Describe what you want to create"
+          placeholder="Describe a product, presentation, or message to share…"></textarea>
+        <div class="prompt-actions">
+          <span class="muted">Your brief stays on this device</span>
+          <button class="btn btn-primary" type="submit">Create a presentation <span aria-hidden="true">→</span></button>
+        </div>
+      </form>
+      <div class="prompt-suggestions" aria-label="Example prompts">
+        <button type="button" class="prompt-chip" data-prompt="Explain how our product design reduces cost without compromising quality.">Product explainer</button>
+        <button type="button" class="prompt-chip" data-prompt="Create a short introduction to our team, our work, and what makes it useful.">Team introduction</button>
+        <button type="button" class="prompt-chip" data-prompt="Show the key features of a new product and why customers should care.">Product launch</button>
+      </div>
+    </div>
+    <div class="home-section-head"><div><div class="kicker">Create with Design to Cost</div><h2>Choose a workspace</h2></div>
+      <button id="sampleProject" type="button" class="btn btn-outline">▶ Create &amp; render sample video</button></div>
+    <div class="tool-grid">
+      <a class="tool-card" href="#s-project"><span class="tool-icon">▤</span><b>Presentation</b><span>Build a branded deck from notes, screenshots or a PowerPoint.</span><small>Slides · PowerPoint</small></a>
+      <a class="tool-card" href="#s-voice"><span class="tool-icon">♫</span><b>Voice-over</b><span>Write a script, choose an installed local voice and preview narration.</span><small>Script · Local voices</small></a>
+      <a class="tool-card" href="#s-slides"><span class="tool-icon">▧</span><b>Picture &amp; video</b><span>Add images, recorded clips and presenter footage to your slides.</span><small>Images · Recording</small></a>
+      <a class="tool-card" href="#s-build"><span class="tool-icon">▶</span><b>Video &amp; music</b><span>Render a narrated video, add licensed music and export short formats.</span><small>Video · Audio · Export</small></a>
+      <a class="tool-card tool-card-featured" href="/studio/"><span class="tool-icon">✦</span><b>Video &amp; Voice Studio</b><span>Make a scene-based video with images, voice-over and music.</span><small>Open the Studio →</small></a>
+    </div>
+    <p class="offline-note"><b>Offline by design.</b> Use the voices and media already on your device. Optional voice models are installed only when you choose to set them up; no cloud AI or API key is used.</p>
+  </section>
 
   <section id="s-project">
     <div class="section-head"><div class="kicker">Step 1</div><h2>Project details</h2></div>

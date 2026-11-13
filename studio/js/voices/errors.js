@@ -1,6 +1,6 @@
-// One error type for every voice engine, so the UI can show one clear message and fall back.
+// One error type for every local or browser voice engine, so the UI can report failures clearly.
 export class VoiceError extends Error {
-  /** @param {"auth"|"quota"|"network"|"bad_request"|"server"|"unsupported"|"aborted"} code */
+  /** @param {"network"|"bad_request"|"server"|"unsupported"|"aborted"} code */
   constructor(code, message, { status = 0, fallback = true } = {}) {
     super(message);
     this.name = "VoiceError";
@@ -24,23 +24,13 @@ export async function errorFromResponse(res, service) {
     }
   }
   const status = res.status;
-  const code = String(detail.status || detail.code || "").toLowerCase();
-  if (code.includes("quota") || code.includes("credit") || (status === 401 && /quota|credits/i.test(detail.message || ""))) {
-    return new VoiceError("quota", `${service}: your character quota is used up. Add credits or switch engine.`, { status });
-  }
-  if (status === 401 || status === 403 || code.includes("invalid_api_key") || code.includes("unauthorized")) {
-    return new VoiceError("auth", `${service}: the API key was rejected. Check it in Settings.`, { status });
-  }
-  if (status === 429) {
-    return new VoiceError("quota", `${service}: too many requests or quota exceeded. Wait a minute or switch engine.`, { status });
-  }
   if (status >= 400 && status < 500) {
     return new VoiceError("bad_request", `${service}: request refused (${status}) — ${detail.message || "check the voice and text"}.`, { status, fallback: true });
   }
-  return new VoiceError("server", `${service} had a problem (${status}). Try again later.`, { status });
+  return new VoiceError("server", `${service} returned an error (${status}). Check that the local app and voice engine are ready.`, { status });
 }
 
 export function networkError(service, err) {
   if (err?.name === "AbortError") return new VoiceError("aborted", "Cancelled.", { fallback: false });
-  return new VoiceError("network", `${service} could not be reached (no internet, server off, or blocked).`);
+  return new VoiceError("network", `${service} could not be reached. Start the Design to Cost app on this computer and try again.`);
 }
