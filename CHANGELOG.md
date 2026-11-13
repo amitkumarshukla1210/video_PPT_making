@@ -10,6 +10,7 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - Refresh both workspaces with a branded home prompt, sidebar navigation, and task-specific entry points while preserving the Design to Cost logo and product name.
 - Add an original ready-to-try sample picture and narrated-video workflow in the main app and Video & Voice Studio.
 - Make the Studio offline-first: remove hosted voice services, API-key fields, and configurable remote TTS endpoints. Only the local app voice server can generate exportable narration; built-in browser voices remain preview-only.
+- **My cloned voice in the Studio:** the local voice server now offers your own cloned voice (23 languages incl. Hindi), using the voice sample recorded once in the Presentation app. No API key, no internet.
 - Ask before downloading the optional MP4/MP3 converter; WebM, WAV, and subtitles remain available without it.
 - Document unavailable offline categories and update the end-to-end coverage for the sample voice-over export.
 

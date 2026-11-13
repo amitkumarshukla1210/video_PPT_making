@@ -199,6 +199,9 @@ function renderVoicePanel() {
   $("#engineNote").textContent = !ready.ok ? ready.reason
     : engine.canExport ? `${engine.label}: voices are saved into your video and audio files.`
       : "Browser voices can only be previewed. Start the local Design to Cost app and choose its voice server for narrated exports, or untick “Include voiceover”.";
+  if ((v.voiceId || "").startsWith("clone:")) {
+    $("#engineNote").textContent += " Your cloned voice: allow about 3–5 s per second of speech without an NVIDIA graphics card.";
+  }
   renderPresets();
 }
 

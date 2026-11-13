@@ -63,3 +63,47 @@ def test_version_everywhere():
     assert c.get("/studio/VERSION").data.decode() == v
     assert f"v{v}".encode() in c.get("/").data
     assert f"## {v} " in (Path(__file__).resolve().parent.parent / "CHANGELOG.md").read_text()
+
+
+def test_my_cloned_voice_is_offered_and_uses_my_sample(tmp_path, monkeypatch):
+    """The Studio gets 'My cloned voice' from the local server once a sample was recorded (no API key)."""
+    import json as _json
+    import sys as _sys
+    import textwrap
+    from app import project as project_store
+    from app.tts import clone_engine
+
+    monkeypatch.setattr(project_store, "PROJECTS_DIR", tmp_path)
+    c = client()
+    # installed but no sample yet: not offered
+    monkeypatch.setattr(clone_engine, "_python", lambda: _sys.executable)
+    assert not any(v["engine"] == "clone" for v in c.get("/v1/audio/voices").get_json()["voices"])
+
+    proj = tmp_path / "demo-1"
+    (proj / "uploads").mkdir(parents=True)
+    sample = proj / "uploads" / "voice_sample_ab12.wav"
+    with wave.open(str(sample), "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000); w.writeframes(b"\0\0" * 24000 * 8)
+    (proj / "project.json").write_text(_json.dumps({"id": "demo-1", "voice_sample": "uploads/voice_sample_ab12.wav"}))
+
+    seen = {}
+    fake = tmp_path / "fake_worker.py"
+    fake.write_text(textwrap.dedent(f'''
+        import json, sys, wave
+        job = json.load(open(sys.argv[1], encoding="utf-8"))
+        json.dump({{"ref": job["ref"], "lang": job["lang"]}}, open({str(tmp_path / "seen.json")!r}, "w"))
+        for n, it in enumerate(job["items"]):
+            with wave.open(it["out"], "wb") as w:
+                w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000); w.writeframes(b"\\x10\\x00" * 24000)
+            print(f"PROGRESS {{n + 1}} {{len(job['items'])}}", flush=True)
+    '''))
+    monkeypatch.setattr(clone_engine, "WORKER", fake)
+
+    voices = c.get("/v1/audio/voices").get_json()
+    clone = [v for v in voices["voices"] if v["engine"] == "clone"]
+    assert voices["clone"] == {"installed": True, "sample": True}
+    assert any(v["id"] == "clone:hi" and "Hindi" in v["name"] for v in clone)
+    r = c.post("/v1/audio/speech", json={"input": "नमस्ते, यह मेरी आवाज़ है।", "voice": "clone:hi"})
+    assert r.status_code == 200 and r.mimetype == "audio/wav"
+    seen = _json.loads((tmp_path / "seen.json").read_text())
+    assert seen == {"ref": str(sample), "lang": "hi"}

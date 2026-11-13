@@ -32,6 +32,7 @@ computer.
 - **Voice engines** (switchable):
   - **Browser / Windows voices** — preview only; browsers do not expose this audio for export.
   - **Local voice server** — this app's installed Kokoro / Piper / eSpeak / Windows voices. The page only contacts `localhost`.
+  - **My cloned voice** — your own voice, offline and without any API key. After `setup_windows.bat clone`, record a 10–30 s voice sample once in the Presentation app (Step 3 › Voice clone); it then appears in the Studio's Voice list as *My cloned voice — English / Hindi / …*. It is slow without an NVIDIA graphics card.
 - **Voice controls:** local voice list and speed; browser preview voices also expose pitch.
   - You can preview and regenerate one scene at a time, or give a scene its own voice.
   - A **voice library** saves named presets.
