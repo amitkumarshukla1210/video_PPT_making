@@ -83,3 +83,14 @@ test("saved projects contain no credential fields", () => {
   s.saveNow();
   assert.doesNotMatch(mem.m.get(STORAGE_KEY), /apiKey|secret|token/i);
 });
+
+test("a background change redraws the scene list; typing does not", () => {
+  const s = new Store(memStorage());
+  s.splitFromScript("A.");
+  const id = s.project.scenes[0].id;
+  const reasons = [];
+  s.subscribe((_, r) => reasons.push(r));
+  s.editScene(id, { text: "B." }, `${id}:text`);
+  s.editScene(id, { background: { kind: "image", mediaId: "m1", color: "#000000" } });
+  assert.deepEqual(reasons, ["scene", "media"]);
+});

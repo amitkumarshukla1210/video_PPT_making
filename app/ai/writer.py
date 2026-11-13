@@ -96,23 +96,61 @@ def translate(texts, language, progress=lambda f, m: None):
     return out
 
 
-def scenes_from_prompt(idea, template="inspiration", scenes=5, language="en", style=""):
-    """A Studio script ('# Title' + one spoken line per scene) plus one picture prompt per scene."""
-    scenes = max(2, min(12, int(scenes or 5)))
-    prompt = (
-        f"Idea for a short {template} video: {idea}\n"
-        f"Write {scenes} scenes in {lang_name(language)}. Each scene: a short on-screen title (max 6 words), "
-        "a spoken line (1-2 sentences, max 30 words), and an English picture prompt for an image generator "
-        f"(cinematic, concrete subject, setting, light; no text in the image{'; style: ' + style if style else ''}). "
-        'Return JSON: {"scenes": [{"title": "...", "line": "...", "image": "..."}]}')
-    data = llm.generate_json(prompt, "You are a film scriptwriter for short corporate and cinematic videos. Answer in JSON only.",
-                             temperature=0.7)
+MAX_SCENES = 60          # ~8 minutes at ~8 s per scene; the Studio's limit is 10 minutes
+SCENE_CHUNK = 8          # scenes per AI request for long videos
+
+
+def _scene_items(data):
     out = []
     for sc in data.get("scenes", []) if isinstance(data, dict) else []:
         title = str(sc.get("title") or "").strip()
         line = str(sc.get("line") or "").strip()
         if line:
             out.append({"title": title, "line": line, "image": str(sc.get("image") or title or line).strip()})
+    return out
+
+
+def scenes_from_prompt(idea, template="inspiration", scenes=5, language="en", style="", progress=lambda f, m: None):
+    """A Studio script ('# Title' + one spoken line per scene) plus one picture prompt per scene.
+    Long videos (more than SCENE_CHUNK scenes): the AI first writes a story outline, then the scenes
+    in parts, each part seeing the outline and the previous scene, so the story stays consistent."""
+    scenes = max(2, min(MAX_SCENES, int(scenes or 5)))
+    system = ("You are a film scriptwriter for cinematic and corporate videos. Strong visual storytelling, "
+              "a clear arc (hook, build-up, turning point, resolution, call to action). Answer in JSON only.")
+    look = f"; visual style for every picture: {style}" if style else ""
+    scene_rules = (f"Each scene: a short on-screen title (max 6 words), a spoken line in {lang_name(language)} "
+                   "(1-2 sentences, max 30 words), and an English picture prompt for an image generator "
+                   f"(cinematic, concrete subject, setting, camera angle, light; no text in the image{look}). ")
+    if scenes <= SCENE_CHUNK:
+        prompt = (f"Idea for a short {template} video: {idea}\nWrite {scenes} scenes. " + scene_rules +
+                  'Return JSON: {"scenes": [{"title": "...", "line": "...", "image": "..."}]}')
+        out = _scene_items(llm.generate_json(prompt, system, temperature=0.7))
+    else:
+        progress(0.02, f"Planning the story: {scenes} scenes")
+        plan = llm.generate_json(
+            f"Idea for a {template} video of {scenes} scenes: {idea}\n"
+            f"Write a story outline: exactly {scenes} numbered beats, one short sentence each, forming one arc "
+            "(hook, build-up, turning point, resolution, call to action). Keep one consistent main character, "
+            "place and look throughout." + (f" Visual style: {style}." if style else "") +
+            ' Return JSON: {"beats": ["...", "..."]}', system, temperature=0.7)
+        beats = [str(b).strip() for b in (plan.get("beats") or []) if str(b).strip()] if isinstance(plan, dict) else []
+        if len(beats) < scenes // 2:
+            raise llm.LLMError("The local AI could not plan the story. Try again, or a shorter video.")
+        beats = (beats + beats[-1:] * scenes)[:scenes]
+        outline = "\n".join(f"{k + 1}. {b}" for k, b in enumerate(beats))
+        out = []
+        for c in range(0, scenes, SCENE_CHUNK):
+            part = list(range(c, min(scenes, c + SCENE_CHUNK)))
+            progress(0.05 + 0.95 * c / scenes, f"Writing scenes {part[0] + 1}–{part[-1] + 1} of {scenes}")
+            prev = f'Previous scene: "{out[-1]["line"]}"\n' if out else ""
+            prompt = (f"Video idea: {idea}\nFull outline:\n{outline}\n\n{prev}"
+                      f"Write scenes {part[0] + 1} to {part[-1] + 1} only, one per outline beat, continuing smoothly. "
+                      + scene_rules +
+                      'Return JSON: {"scenes": [{"title": "...", "line": "...", "image": "..."}]}')
+            got = _scene_items(llm.generate_json(prompt, system, temperature=0.7))
+            if not got:
+                raise llm.LLMError(f"The local AI skipped scenes {part[0] + 1}–{part[-1] + 1}. Please try again.")
+            out += got[:len(part)]
     if len(out) < 2:
         raise llm.LLMError("The local AI did not return usable scenes. Try a more specific idea.")
     script = "\n\n".join(f"# {s['title']}\n{s['line']}" if s["title"] else s["line"] for s in out)

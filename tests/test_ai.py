@@ -33,6 +33,14 @@ class FakeOllama:
         if "Write the narration" in p:
             nums = [int(n) for n in re.findall(r"^(\d+)\. (?:Title slide|Closing slide|Slide):", p, re.M)]
             return {"response": json.dumps({"slides": [{"n": n, "script": f"AI narration for slide {n}, clear and professional."} for n in nums]})}
+        m = re.search(r"exactly (\d+) numbered beats", p)
+        if m:
+            return {"response": json.dumps({"beats": [f"Beat {k + 1}" for k in range(int(m.group(1)))]})}
+        m = re.search(r"Write scenes (\d+) to (\d+) only", p)
+        if m:
+            a, b = int(m.group(1)), int(m.group(2))
+            return {"response": json.dumps({"scenes": [{"title": f"Scene {k}", "line": f"Spoken line {k}.", "image": f"picture {k}"}
+                                                       for k in range(a, b + 1)]})}
         if "Write " in p and "scenes" in p:
             return {"response": json.dumps({"scenes": [{"title": "Opening", "line": "Every product starts with an idea.", "image": "a design studio at dawn"},
                                                        {"title": "The turn", "line": "Cost becomes part of design.", "image": "engineers around a table"}]})}
@@ -215,3 +223,62 @@ def test_recording_gets_noise_cleanup_whisper_captions_and_whoosh(proj, monkeypa
     around = a[int((start2 - 0.3) * rate):int((start2 + 0.3) * rate)]
     assert np.sqrt((around ** 2).mean()) > 200
     assert (base / "audio/slide_001.captions.json").exists()      # cached for the next render
+
+
+def test_long_cinematic_video_outline_then_parts(fake_llm):
+    steps = []
+    out = writer.scenes_from_prompt("a factory that learns to save", "trailer", 22, progress=lambda f, m: steps.append(m))
+    assert len(out["scenes"]) == 22
+    assert [sc["title"] for sc in out["scenes"]][:3] == ["Scene 1", "Scene 2", "Scene 3"]
+    assert out["scenes"][-1]["line"] == "Spoken line 22."
+    # 1 outline request + 3 parts of up to 8 scenes, each part sees the full outline and the previous line
+    assert len(fake_llm.prompts) == 4
+    assert "22. Beat 22" in fake_llm.prompts[2] and 'Previous scene: "Spoken line 8."' in fake_llm.prompts[2]
+    assert steps[0].startswith("Planning the story") and "scenes 17–22 of 22" in steps[-1]
+    assert writer.scenes_from_prompt("x", scenes=500)["scenes"] and len(fake_llm.prompts) > 4   # capped at 60
+
+
+def test_long_scene_job_endpoint(fake_llm):
+    c = app.test_client()
+    r = c.post("/v1/ai/scenes", json={"idea": "long story", "scenes": 12, "background": True})
+    assert r.status_code == 202
+    for _ in range(100):
+        j = c.get("/v1/ai/jobs/scenes").get_json()
+        if j["state"] != "running":
+            break
+        time.sleep(0.05)
+    assert j["state"] == "done" and len(j["result"]["scenes"]) == 12
+
+
+def test_picture_creator_endpoint_with_stand_in_worker(tmp_path, monkeypatch):
+    import base64
+    import textwrap
+    from app.ai import images
+    fake = tmp_path / "fake_image_worker.py"
+    fake.write_text(textwrap.dedent('''
+        import json, sys
+        from PIL import Image
+        job = json.load(open(sys.argv[1], encoding="utf-8"))
+        for n, it in enumerate(job["items"]):
+            Image.new("RGB", (job["width"], job["height"]), (20, 90, 160)).save(it["out"])
+            print(f"PROGRESS {n + 1} {len(job['items'])}", flush=True)
+    '''))
+    monkeypatch.setattr(images, "WORKER", fake)
+    monkeypatch.setattr(images, "_python", lambda: sys.executable)
+    monkeypatch.setattr(images, "_model_cached", lambda: True)
+    c = app.test_client()
+    assert c.get("/v1/ai/status").get_json()["images"]["available"] is True
+    r = c.post("/v1/images/generations", json={"prompt": "a design studio at dawn", "aspect": "9:16"})
+    assert r.status_code == 200
+    from PIL import Image
+    import io
+    img = Image.open(io.BytesIO(base64.b64decode(r.get_json()["data"][0]["b64_json"])))
+    assert img.size == images.SIZES["9:16"]
+    assert c.post("/v1/images/generations", json={}).status_code == 400
+
+
+def test_picture_creator_explains_when_not_installed(monkeypatch):
+    from app.ai import images
+    monkeypatch.setattr(images, "_python", lambda: None)
+    r = app.test_client().post("/v1/images/generations", json={"prompt": "x"})
+    assert r.status_code == 503 and "setup_windows.bat images" in r.get_json()["error"]["message"]

@@ -201,3 +201,10 @@ legend { font-weight: 800; color: var(--ink); padding: 0 6px; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* local AI box + picture prompt */
+.ai-box { margin-top: 10px; border: 1px dashed var(--grey-border); border-radius: 8px; padding: 8px 12px; background: var(--grey-light); }
+.ai-box summary { cursor: pointer; font-weight: 700; color: var(--ink); }
+.ai-box[open] summary { margin-bottom: 8px; }
+.prompt-field { flex: 1 1 260px; display: flex; gap: 6px; align-items: center; }
+.prompt-field input { flex: 1; padding: 4px 6px; font-size: 12px; }

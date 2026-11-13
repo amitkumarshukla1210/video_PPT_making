@@ -84,6 +84,8 @@ class Studio:
         self.page = self.ctx.new_page()
         self.errors = []
         self.tts_calls = []
+        self.ai_calls = []
+        self.long_scenes = 0
         self.cdn_requests = []
         self.page.on("pageerror", lambda e: self.errors.append(f"pageerror: {e}"))
         self.page.on("console", lambda m: self.errors.append(f"console: {m.text} ({m.location.get('url', '')})") if m.type == "error" else None)
@@ -109,11 +111,44 @@ class Studio:
             return route.fulfill(status=200, headers=cors, content_type="application/json",
                                  body=json.dumps({"voices": [{"id": "kokoro:af_heart", "name": "Heart", "lang": "en-us", "gender": "female"},
                                                              {"id": "kokoro:am_adam", "name": "Adam", "lang": "en-us", "gender": "male"}]}))
+        if "/v1/ai/" in req.url or "/v1/images/" in req.url or "/v1/library" in req.url:
+            return self._local_ai(route, cors)
         body = json.loads(req.post_data or "{}")
         self.tts_calls.append(body)
         secs = self.voice_seconds or min(3.0, 0.6 + 0.25 * len(body.get("input", "").split()))
         return route.fulfill(status=200, headers=cors, content_type="audio/wav",
                              body=wav_bytes(secs, amp=0.0 if self.silent_voice else 0.3))
+
+    def _local_ai(self, route, cors):
+        """Stand-in for the app's local AI endpoints (scene writer, picture creator, music library)."""
+        import base64
+        from PIL import Image
+        url = route.request.url
+        self.ai_calls.append((url.split("8000")[1], json.loads(route.request.post_data or "{}") if route.request.method == "POST" else None))
+        if url.endswith("/v1/ai/status"):
+            data = {"llm": {"available": True, "info": "fake"}, "images": {"available": True, "info": "fake"}}
+        elif url.endswith("/v1/ai/scenes") and json.loads(route.request.post_data or "{}").get("background"):
+            self.long_scenes = json.loads(route.request.post_data)["scenes"]
+            return route.fulfill(status=202, headers=cors, content_type="application/json", body=json.dumps({"job": {"state": "running"}}))
+        elif url.endswith("/v1/ai/jobs/scenes"):
+            n = self.long_scenes
+            data = {"state": "done", "result": {"script": "\n\n".join(f"# Scene {k}\nLine {k}." for k in range(1, n + 1)),
+                                                "scenes": [{"title": f"Scene {k}", "line": f"Line {k}.", "image": f"picture {k}"} for k in range(1, n + 1)]}}
+        elif url.endswith("/v1/ai/scenes"):
+            data = {"script": "# Opening\nEvery product starts with an idea.\n\n# The turn\nCost becomes part of design.",
+                    "scenes": [{"title": "Opening", "line": "Every product starts with an idea.", "image": "a design studio at dawn"},
+                               {"title": "The turn", "line": "Cost becomes part of design.", "image": "engineers around a table"}]}
+        elif url.endswith("/v1/images/generations"):
+            buf = io.BytesIO()
+            Image.new("RGB", (768, 432), (200, 120, 40)).save(buf, "PNG")
+            data = {"data": [{"b64_json": base64.b64encode(buf.getvalue()).decode()}]}
+        elif url.endswith("/v1/library"):
+            data = {"music": [{"id": "corporate", "label": "Corporate — bright and positive"}], "sfx": []}
+        elif "/v1/library/music/" in url:
+            return route.fulfill(status=200, headers=cors, content_type="audio/wav", body=wav_bytes(4.0, freq=220, amp=0.4, rate=44100))
+        else:
+            return route.fulfill(status=404, headers=cors, body="")
+        return route.fulfill(status=200, headers=cors, content_type="application/json", body=json.dumps(data))
 
     def _core(self, route):
         name = CDN_CORE.match(route.request.url).group(1)
@@ -554,3 +589,54 @@ def test_cancel_stops_a_running_export(studio):
     p.wait_for_function("() => document.querySelector('#progressText').textContent === 'Cancelled.'")
     assert p.locator("#downloadLink").count() == 0
     assert not p.is_disabled("#exportBtn")
+
+
+def test_ai_writes_scenes_from_an_idea_and_creates_pictures(studio):
+    p = studio.page
+    p.click("#aiBox summary")
+    p.fill("#aiIdea", "How designing with live material prices cut product cost")
+    p.select_option("#aiLength", "custom")
+    p.fill("#aiScenes", "2")
+    p.click("#aiScenesBtn")
+    p.wait_for_function("() => document.querySelector('#aiStudioStatus').textContent.includes('picture(s) created')", timeout=30000)
+    proj = studio.project()
+    assert [s["title"] for s in proj["scenes"]] == ["Opening", "The turn"]
+    assert [s["imagePrompt"] for s in proj["scenes"]] == ["a design studio at dawn", "engineers around a table"]
+    assert all(s["background"]["kind"] == "image" and s["background"]["mediaId"] for s in proj["scenes"])
+    calls = [c[0] for c in studio.ai_calls]
+    assert calls.count("/v1/images/generations") == 2
+    sent = [c[1] for c in studio.ai_calls if c[0] == "/v1/ai/scenes"][0]
+    assert sent["scenes"] == 2 and "material prices" in sent["idea"]
+    prompts = [c[1]["prompt"] for c in studio.ai_calls if c[0] == "/v1/images/generations"]
+    assert prompts == ["a design studio at dawn", "engineers around a table"]
+    p.wait_for_selector("#scenes .scene:first-child .thumb img")
+    # one more picture for a single scene, from an edited prompt
+    box = studio.scenes().nth(1).locator("input[data-k=imagePrompt]")
+    box.fill("a modern factory floor")
+    studio.scenes().nth(1).locator("[data-act=picture]").click()
+    p.wait_for_function("() => document.querySelector('#aiStudioStatus').textContent.includes('1 picture(s) created')")
+    assert [c[1]["prompt"] for c in studio.ai_calls if c[0] == "/v1/images/generations"][-1] == "a modern factory floor"
+
+
+def test_music_library_from_the_local_app(studio):
+    p = studio.page
+    p.wait_for_function("() => document.querySelectorAll('#libMood option').length > 1")
+    p.select_option("#libMood", "corporate")
+    p.click("#libUse")
+    p.wait_for_function("() => document.querySelector('#musicName').textContent.includes('Corporate')")
+    assert studio.project()["music"]["mediaId"]
+
+
+def test_long_cinematic_video_from_a_prompt(studio):
+    p = studio.page
+    p.click("#aiBox summary")
+    p.fill("#aiIdea", "An 3-minute cinematic story about designing with the full cost in view")
+    p.select_option("#aiLength", "22")
+    p.set_checked("#aiPictures", False)
+    p.click("#aiScenesBtn")
+    p.wait_for_function("() => document.querySelectorAll('#scenes .scene').length === 22", timeout=30000)
+    proj = studio.project()
+    assert proj["scenes"][21]["imagePrompt"] == "picture 22"
+    assert 60 < studio.timeline()["total"] < 600              # long, and still within the 10-minute limit
+    p.select_option("#aiLength", "custom")
+    assert p.is_visible("#aiScenesField")

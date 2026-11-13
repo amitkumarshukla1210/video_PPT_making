@@ -156,3 +156,90 @@ def speech():
             subprocess.run([ffmpeg_bin(), "-loglevel", "error", "-y", "-i", str(wav), "-b:a", "128k", str(mp3)], check=True)
             return Response(mp3.read_bytes(), mimetype="audio/mpeg")
         return Response(wav.read_bytes(), mimetype="audio/wav")
+
+
+# ---------- local AI for the Video & Voice Studio (same CORS rules as speech) ----------
+@bp.route("/v1/ai/status", methods=["OPTIONS"])
+@bp.route("/v1/ai/scenes", methods=["OPTIONS"])
+@bp.route("/v1/images/generations", methods=["OPTIONS"])
+def _preflight_ai():
+    return Response(status=204)
+
+
+@bp.get("/v1/ai/status")
+def ai_status():
+    from .ai import llm, images
+    return jsonify(llm=llm.status(), images=images.status())
+
+
+@bp.post("/v1/ai/scenes")
+def ai_scenes():
+    """Idea → scene script ('# Title' + spoken line per scene) and one picture prompt per scene."""
+    from .ai import llm, writer
+    b = request.get_json(silent=True) or {}
+    idea = str(b.get("idea") or "").strip()
+    if not idea:
+        return _error(400, "Describe your idea first.", "invalid_request_error")
+    if not llm.status()["available"]:
+        return _error(503, llm.status()["info"], "server_error")
+    args = (idea[:2000], str(b.get("template") or "inspiration"), b.get("scenes") or 5,
+            str(b.get("language") or "en"), str(b.get("style") or "")[:200])
+    if b.get("background"):          # long videos: run as a job, poll GET /v1/ai/jobs/scenes
+        from . import jobs
+        job = jobs.start("studio:scenes", lambda progress, cancelled: writer.scenes_from_prompt(
+            *args, progress=lambda f, m: progress("Writing scenes", f, m)))
+        return jsonify(job={k: v for k, v in job.items() if k != "cancel"}), 202
+    try:
+        out = writer.scenes_from_prompt(*args)
+    except llm.LLMError as e:
+        return _error(502, str(e), "server_error")
+    return jsonify(out)
+
+
+@bp.route("/v1/ai/jobs/scenes", methods=["OPTIONS"])
+def _preflight_job():
+    return Response(status=204)
+
+
+@bp.get("/v1/ai/jobs/scenes")
+def ai_scenes_job():
+    from . import jobs
+    return jsonify(jobs.status("studio:scenes"))
+
+
+@bp.post("/v1/images/generations")
+def image_generations():
+    """OpenAI-style picture creation, offline: {"prompt", "n", "aspect"} → {"data": [{"b64_json"}]}"""
+    import base64
+    from .ai import images
+    b = request.get_json(silent=True) or {}
+    prompt = str(b.get("prompt") or "").strip()
+    if not prompt:
+        return _error(400, "'prompt' is required.", "invalid_request_error")
+    if not images.status()["available"]:
+        return _error(503, images.status()["info"], "server_error")
+    n = max(1, min(4, int(b.get("n") or 1)))
+    try:
+        pngs = images.generate([prompt[:900]] * n, str(b.get("aspect") or "16:9"), b.get("seed"))
+    except RuntimeError as e:
+        return _error(500, str(e), "server_error")
+    return jsonify(data=[{"b64_json": base64.b64encode(p).decode("ascii")} for p in pngs])
+
+
+@bp.get("/v1/library")
+def library_catalogue():
+    from .ai import library
+    return jsonify(library.catalogue())
+
+
+@bp.get("/v1/library/<kind>/<name>.wav")
+def library_sound(kind, name):
+    from flask import send_file
+    from .ai import library
+    try:
+        path = library.music_file(name) if kind == "music" else library.sfx_file(name) if kind == "sfx" else None
+    except KeyError:
+        path = None
+    if not path:
+        return _error(404, "Unknown sound.", "invalid_request_error")
+    return send_file(path, mimetype="audio/wav")
