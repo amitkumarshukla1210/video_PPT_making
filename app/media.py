@@ -38,11 +38,16 @@ def normalize_clip(src, dst):
     return duration(dst)
 
 
-def clip_audio(src, dst_wav):
-    """Presenter clip -> loudness-normalised mono WAV, the same format as the voice-over."""
+# Noise cleanup for phone/webcam recordings: rumble cut, FFmpeg's FFT denoiser (tracks steady noise), hiss cut.
+CLEAN_FILTER = "highpass=f=80,afftdn=nr=14:nf=-32:tn=1,lowpass=f=12000"
+
+
+def clip_audio(src, dst_wav, clean=False):
+    """Presenter clip -> loudness-normalised mono WAV, the same format as the voice-over.
+    clean=True also removes steady background noise (fan, traffic, room hum)."""
+    chain = (CLEAN_FILTER + "," if clean else "highpass=f=70,") + "loudnorm=I=-16:TP=-1.5:LRA=11"
     _run([ffmpeg_bin(), "-hide_banner", "-loglevel", "error", "-y", "-i", str(src), "-vn",
-          "-af", "highpass=f=70,loudnorm=I=-16:TP=-1.5:LRA=11", "-ar", str(AUDIO_RATE), "-ac", "1",
-          "-sample_fmt", "s16", str(dst_wav)])
+          "-af", chain, "-ar", str(AUDIO_RATE), "-ac", "1", "-sample_fmt", "s16", str(dst_wav)])
 
 
 def normalize_voice_sample(src, dst_wav, max_seconds=30):

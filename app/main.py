@@ -12,6 +12,7 @@ from . import jobs, media, project as P, tts
 from .config import HOST, PORT, MAX_VIDEO_SECONDS, APP_NAME, MODULE_NAME, ROOT
 from .speech_api import bp as speech_bp
 from .version import app_version
+from .ai import llm, writer as ai_writer, dubbing, library
 from .ffmpeg_utils import best_encoder, ENCODERS
 from .ppt_builder import build_pptx
 from .ppt_import import import_pptx
@@ -99,7 +100,91 @@ def system():
     qr = qrcode.make(url, image_factory=qrcode.image.svg.SvgPathImage).to_string(encoding="unicode")
     return jsonify(version=app_version(), engines=tts.status(), default_engine=tts.default_engine(),
                    encoder=ENCODERS[best_encoder()][0], phone_url=url, qr_svg=qr,
-                   max_seconds=MAX_VIDEO_SECONDS, presets={k: v[0] for k, v in PRESETS.items()})
+                   max_seconds=MAX_VIDEO_SECONDS, presets={k: v[0] for k, v in PRESETS.items()},
+                   ai=ai_status(), languages=ai_writer.LANGS)
+
+
+def ai_status():
+    from .ai import stt, images
+    return {"llm": llm.status(), "stt": stt.status(), "images": images.status()}
+
+
+@app.get("/api/library")
+def library_list():
+    return jsonify(library.catalogue())
+
+
+@app.get("/library/<kind>/<name>.wav")
+def library_file(kind, name):
+    """Preview / download a library sound (made on first use, then cached)."""
+    try:
+        path = library.music_file(name) if kind == "music" else library.sfx_file(name) if kind == "sfx" else None
+    except KeyError:
+        path = None
+    if not path:
+        abort(404)
+    return send_from_directory(path.parent, path.name, mimetype="audio/wav")
+
+
+@app.post("/api/projects/<pid>/music_library")
+def music_from_library(pid):
+    """Use a library music bed as the project's background music."""
+    proj = _proj(pid)
+    mood = (request.json or {}).get("mood")
+    if mood not in library.MOODS:
+        abort(400, "Unknown music mood")
+    dst = f"uploads/music_library_{mood}.wav"
+    import shutil
+    shutil.copyfile(library.music_file(mood), P.folder(pid) / dst)
+    proj["music"]["file"] = dst
+    proj["music"]["library"] = mood
+    P.save(proj)
+    return jsonify(proj)
+
+
+@app.post("/api/projects/<pid>/ai_script")
+def ai_script(pid):
+    """Local AI writes corporate narration from the slides (runs in the background)."""
+    _proj(pid)
+    b = request.json or {}
+    if not llm.status()["available"]:
+        abort(400, llm.status()["info"])
+
+    def work(progress, cancelled):
+        proj = _proj(pid)
+        n = ai_writer.write_narration(proj, b.get("language") or proj.get("language") or "en",
+                                      bool(b.get("overwrite")), lambda f, m: progress("AI narration", f, m))
+        fresh = _proj(pid)                       # keep edits made meanwhile to other fields
+        for s, new in zip(fresh["slides"], proj["slides"]):
+            if s["id"] == new["id"]:
+                s["script"] = new["script"]
+        P.save(fresh)
+        return {"written": n}
+
+    return jsonify(jobs.start(f"{pid}:ai", work) | {"cancel": None})
+
+
+@app.post("/api/projects/<pid>/dub")
+def dub(pid):
+    """Translated copy of the project in another language (runs in the background)."""
+    proj = _proj(pid)
+    lang = str((request.json or {}).get("language") or "hi")[:2].lower()
+    if lang not in ai_writer.LANGS:
+        abort(400, "Unknown language")
+    if not llm.status()["available"]:
+        abort(400, llm.status()["info"])
+    if not any((s.get("script") or "").strip() for s in proj["slides"]):
+        abort(400, "Write the narration first; the dub translates it.")
+    try:
+        dubbing.pick_voice(proj, lang)
+    except RuntimeError as e:
+        abort(400, str(e))
+
+    def work(progress, cancelled):
+        d = dubbing.make_dub(_proj(pid), lang, lambda f, m: progress("Dubbing", f, m))
+        return {"project": d["id"], "name": d["name"]}
+
+    return jsonify(jobs.start(f"{pid}:ai", work) | {"cancel": None})
 
 
 @app.get("/api/projects")
@@ -134,6 +219,9 @@ def update(pid):
         proj["music"]["volume"] = float(body["music"]["volume"])
     if "intro" in body:
         proj["intro"] = bool(body["intro"])
+    for flag in ("clean_audio", "sfx"):
+        if flag in body:
+            proj[flag] = bool(body[flag])
     if "pip" in body:
         pip = proj.setdefault("pip", {"enabled": False, "photo": None, "position": "br", "shape": "circle", "size": "m"})
         b = body["pip"]
@@ -377,7 +465,7 @@ def export_start(pid):
 
 @app.get("/api/projects/<pid>/job")
 def job(pid):
-    return jsonify(jobs.status(pid) | {"export": jobs.status(f"{pid}:export")})
+    return jsonify(jobs.status(pid) | {"export": jobs.status(f"{pid}:export"), "ai": jobs.status(f"{pid}:ai")})
 
 
 @app.post("/api/projects/<pid>/cancel")

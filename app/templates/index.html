@@ -123,6 +123,16 @@
         <button class="btn btn-outline" id="redraftScript">Rewrite all from notes</button>
         <a class="btn btn-outline" id="scriptTxt" href="#">⬇ Script (.txt)</a>
       </div>
+      <h3>🤖 AI narration (local AI, no API key)</h3>
+      <p class="muted">Reads every slide (title, points and the speaker notes of an imported PPT) and writes a corporate voice-over script. Runs on this laptop with Ollama; you can edit everything afterwards.</p>
+      <div class="grid">
+        <div><label>Narration language</label><select id="aiLang"></select></div>
+      </div>
+      <div class="row wrap">
+        <button class="btn btn-primary" id="aiWriteEmpty">🤖 AI: write empty slides</button>
+        <button class="btn btn-outline" id="aiWriteAll">🤖 AI: rewrite all slides</button>
+      </div>
+      <p class="muted" id="aiStatus"></p>
     </div>
     <div class="card">
       <h3>Voice selection</h3>
@@ -194,7 +204,28 @@
         <div><label>Music volume <b id="musicVolVal"></b></label><input type="range" id="musicVol" min="0" max="0.4" step="0.02"></div>
         <div><label>Logo intro &amp; outro (3 s each)</label><select id="intro"><option value="1">On</option><option value="0">Off</option></select></div>
       </div>
-      <p class="muted">Use only music you own or that is royalty-free for commercial use (e.g. CC0). It ducks automatically under the voice.</p>
+      <h3>🎼 Music library (made by the app — free for monetised YouTube)</h3>
+      <div class="row wrap">
+        <select id="libMood" aria-label="Library music mood"></select>
+        <button class="btn btn-outline" id="libPreview">▶ Listen</button>
+        <button class="btn btn-primary" id="libUse">Use this music</button>
+        <audio id="libAudio" controls class="hidden"></audio>
+      </div>
+      <div class="grid">
+        <div><label class="check"><input type="checkbox" id="sfx"> Soft “whoosh” at each slide change</label></div>
+        <div><label class="check"><input type="checkbox" id="cleanAudio"> Remove background noise from my recordings</label></div>
+      </div>
+      <p class="muted">Your own music must be yours or royalty-free for commercial use (e.g. CC0). Music is lowered automatically under the voice.
+        <span id="sttStatus"></span></p>
+    </div>
+    <div class="card">
+      <h3>🌐 Other languages (dubbing)</h3>
+      <p class="muted">Makes a copy of this project with the narration and slide titles translated by the local AI, voiced in the new language — in <b>your cloned voice</b> when you have recorded a sample. Check the translation in the copy, then render it.</p>
+      <div class="row wrap">
+        <select id="dubLang" aria-label="Dub into language"></select>
+        <button class="btn btn-primary" id="dubBtn">🌐 Create dubbed copy</button>
+      </div>
+      <p class="muted" id="dubStatus"></p>
     </div>
     <div class="card">
       <h3>Length &amp; render</h3>

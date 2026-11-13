@@ -37,6 +37,8 @@ def new_project(name):
         "music": {"file": None, "volume": 0.12},
         "voice_sample": None,
         "intro": True,
+        "clean_audio": True,
+        "sfx": False,
         "pip": {"enabled": False, "photo": None, "position": "br", "shape": "circle", "size": "m"},
         "created": time.strftime("%Y-%m-%d %H:%M"),
         "slides": [
@@ -58,6 +60,8 @@ def load(pid):
     data = json.loads((folder(pid) / "project.json").read_text(encoding="utf-8"))
     data.setdefault("voice_sample", None)            # projects made before these features existed
     data.setdefault("intro", True)
+    data.setdefault("clean_audio", True)
+    data.setdefault("sfx", False)
     data.setdefault("pip", {"enabled": False, "photo": None, "position": "br", "shape": "circle", "size": "m"})
     return data
 
