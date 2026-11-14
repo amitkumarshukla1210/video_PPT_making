@@ -13,6 +13,7 @@ from .config import HOST, PORT, MAX_VIDEO_SECONDS, APP_NAME, MODULE_NAME, ROOT
 from .speech_api import bp as speech_bp
 from .version import app_version
 from .ai import llm, writer as ai_writer, dubbing, library
+from . import maker, sources
 from .ffmpeg_utils import best_encoder, ENCODERS
 from .ppt_builder import build_pptx
 from .ppt_import import import_pptx
@@ -69,6 +70,96 @@ def _err(e):
 @app.get("/")
 def index():
     return render_template("index.html", version=app_version())
+
+
+@app.get("/make")
+def make_page():
+    """Guided flow: source -> script -> voice -> video type."""
+    return render_template("make.html", version=app_version(), page="make")
+
+
+@app.get("/projects")
+def projects_page():
+    """My projects: every project with its videos, PowerPoint and subtitles."""
+    return render_template("projects.html", version=app_version(), page="projects")
+
+
+@app.get("/api/my_projects")
+def my_projects():
+    return jsonify(maker.library_list())
+
+
+@app.post("/api/projects/<pid>/source")
+def add_source(pid):
+    """Step 1 of Make a video: read the PPT / pictures / document / link / text / idea (background job)."""
+    _proj(pid)
+    f = request.form
+    kind = f.get("kind", "")
+    if kind not in maker.KINDS:
+        abort(400, "Choose what to make the video from")
+    allowed = {"pptx": {".pptx"}, "pictures": IMAGE_EXT, "document": sources.DOC_EXT}.get(kind, set())
+    saved = [str(P.folder(pid) / _save_upload(pid, x, allowed, "doc")) for x in request.files.getlist("files")]
+    if kind in ("pptx", "pictures", "document") and not saved:
+        abort(400, "Add at least one file")
+    if kind == "url" and not f.get("url", "").strip():
+        abort(400, "Paste the web link")
+    if kind in ("text", "idea") and not f.get("text", "").strip():
+        abort(400, "Write or paste the text first")
+    use_ai = f.get("ai", "1") == "1"
+    if kind == "idea" and not llm.status()["available"]:
+        abort(400, llm.status()["info"])
+    try:
+        scenes = max(2, min(ai_writer.MAX_SCENES, int(f.get("scenes") or 8)))
+    except ValueError:
+        scenes = 8
+
+    def work(progress, cancelled):
+        return maker.build_from_source(pid, kind, saved, f.get("url", "").strip(), f.get("text", ""), scenes,
+                                       f.get("language") or "en", f.get("video_type") or "corporate", use_ai,
+                                       f.get("pictures") == "1", f.get("style", ""), progress, cancelled)
+
+    return jsonify(jobs.start(f"{pid}:ai", work) | {"cancel": None})
+
+
+@app.post("/api/projects/<pid>/pictures")
+def ai_pictures(pid):
+    """Create a picture (local AI) for every slide that has none."""
+    _proj(pid)
+
+    def work(progress, cancelled):
+        proj = _proj(pid)
+        n = maker.make_pictures(proj, progress, cancelled)
+        fresh = _proj(pid)
+        for s in fresh["slides"]:
+            new = next((x for x in proj["slides"] if x["id"] == s["id"]), None)
+            if new and new.get("image") and not s.get("image"):
+                s["image"] = new["image"]
+        P.save(fresh)
+        return {"pictures": n}
+
+    return jsonify(jobs.start(f"{pid}:ai", work) | {"cancel": None})
+
+
+@app.post("/api/projects/<pid>/make_video")
+def make_video(pid):
+    """Step 4 of Make a video: render, then the chosen format (YouTube, Reel, corporate, square)."""
+    proj = _proj(pid)
+    b = request.json or {}
+    vtype = b.get("type", "corporate")
+    if vtype not in maker.VIDEO_TYPES:
+        abort(400, "Unknown video type")
+    if not any((s.get("script") or "").strip() or s.get("clip") for s in proj["slides"]):
+        abort(400, "No narration yet — go back to step 2 and write the script.")
+    if estimate(proj)["video_seconds"] > MAX_VIDEO_SECONDS * 1.1:
+        abort(400, f"The video would be longer than {MAX_VIDEO_SECONDS // 60} minutes. Shorten the script first.")
+    proj = maker.prepare_video(proj, vtype, str(b.get("music") or "auto"), bool(b.get("captions", True)))
+
+    def work(progress, cancelled):
+        r = maker.make_video(proj, vtype, bool(b.get("captions", True)), progress, cancelled)
+        return r | {"video": f"/files/{pid}/out/{r['file']}", "pptx": f"/files/{pid}/out/presentation.pptx",
+                    "srt": f"/files/{pid}/out/subtitles.srt"}
+
+    return jsonify(jobs.start(pid, work) | {"cancel": None})
 
 
 @app.get("/studio")
@@ -133,11 +224,7 @@ def music_from_library(pid):
     mood = (request.json or {}).get("mood")
     if mood not in library.MOODS:
         abort(400, "Unknown music mood")
-    dst = f"uploads/music_library_{mood}.wav"
-    import shutil
-    shutil.copyfile(library.music_file(mood), P.folder(pid) / dst)
-    proj["music"]["file"] = dst
-    proj["music"]["library"] = mood
+    maker.use_library_music(proj, mood)
     P.save(proj)
     return jsonify(proj)
 

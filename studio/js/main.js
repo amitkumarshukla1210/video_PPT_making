@@ -54,8 +54,9 @@ function isTyping(el) {
 
 // ---------- theme ----------
 function applyTheme() {
-  document.documentElement.dataset.theme = settings.theme || "auto";
-  const dark = settings.theme === "dark" || (settings.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+  // light (white) unless the user switches to dark with the ◐ button; the computer's dark mode is ignored
+  document.documentElement.dataset.theme = settings.theme === "dark" ? "dark" : "light";
+  const dark = settings.theme === "dark";
   $("#themeBtn").setAttribute("aria-pressed", String(dark));
   $("#themeBtn").title = dark ? "Switch to light mode" : "Switch to dark mode";
 }
@@ -862,7 +863,7 @@ function bind() {
   });
   $("#saveBtn").addEventListener("click", saveFile);
   $("#themeBtn").addEventListener("click", () => {
-    const dark = document.documentElement.dataset.theme === "dark" || (settings.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+    const dark = document.documentElement.dataset.theme === "dark";
     settings.theme = dark ? "light" : "dark";
     saveSettings(settings);
     applyTheme();

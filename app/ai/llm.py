@@ -68,10 +68,10 @@ def _model():
 _THINK = re.compile(r"<think>.*?</think>", re.S)
 
 
-def generate(prompt, system="", json_mode=False, temperature=0.4, timeout=900):
+def generate(prompt, system="", json_mode=False, temperature=0.4, timeout=900, num_ctx=None):
     # think=False: Qwen 3 and similar models answer directly instead of "thinking" first (older Ollama ignores it)
     payload = {"model": _model(), "prompt": prompt, "system": system, "stream": False, "think": False,
-               "options": {"temperature": temperature}}
+               "options": {"temperature": temperature} | ({"num_ctx": num_ctx} if num_ctx else {})}
     if json_mode:
         payload["format"] = "json"
     try:
