@@ -22,7 +22,7 @@ A browser workspace that turns a script into a narrated video or an audio piece.
 media storage, and WebM/WAV/SRT export run locally in the browser. The Studio uses the app's local
 voice server for exportable narration; it does not connect to paid voice APIs or request API keys.
 
-It is served locally at `http://localhost:8000/studio/`. A static copy can also be hosted on GitHub
+It is served locally at `http://localhost:8080/studio/`. A static copy can also be hosted on GitHub
 Pages, but local voice-over export then requires the Design to Cost app to be running on the same
 computer.
 
@@ -54,7 +54,7 @@ computer.
 - Cloud dubbing, speech-to-text, hosted voice services, and sound-effects generation are not included in this offline build.
 
 ### How to use the studio
-1. Open the page: either the live URL, or **http://localhost:8000/studio/** while `start_windows.bat` is running.
+1. Open the page: either the live URL, or **http://localhost:8080/studio/** while `start_windows.bat` is running.
 2. Click **Try narrated sample** for an original picture, three-scene script and real voice-over video, or choose a template and write your own script.
 3. Keep the **Local voice server** selected. It works when the Design to Cost app is running on this computer and an offline voice engine is installed.
 4. Click **▶ Play preview**. Then choose the shape, quality and file type, and click **Export**. WebM video, WAV audio and subtitles work without downloading a converter.
@@ -63,12 +63,12 @@ computer.
 | Engine | Setup |
 |---|---|
 | Browser / Windows voices | Nothing. Preview only; browser speech cannot be embedded in exports. |
-| Local voice server | Run `start_windows.bat`. The page calls only `http://localhost:8000/v1/audio/speech`; install a voice model separately with the documented setup script if one is not already present. |
+| Local voice server | Run `start_windows.bat`. The page calls only `http://localhost:8080/v1/audio/speech`; install a voice model separately with the documented setup script if one is not already present. |
 | MP4 / MP3 fallback conversion | Optional. A confirmation appears before downloading the ffmpeg.wasm converter. Declining keeps WebM/WAV/SRT available. |
 
 ### Run locally, and test
 ```
-start_windows.bat                       # then open http://localhost:8000/studio/
+start_windows.bat                       # then open http://localhost:8080/studio/
 node --test tests/studio/*.test.mjs     # unit tests (no install)
 python -m pytest -q                     # app + speech API + browser end-to-end tests
 ```
@@ -101,14 +101,16 @@ You only do steps 1–3 once.
    | `install_once.bat gpu` | Uses your graphics card for the voices (NVIDIA, AMD or Intel). |
    | `install_once.bat small` | Smaller, faster voice model for older laptops. |
    | `install_once.bat piper` | Extra languages through Piper voices. |
-4. **Double-click `start_windows.bat`.** A black window opens; keep it open while you use the app. Your browser opens at `http://localhost:8000`.
+4. **Double-click `start_windows.bat`.** A black window opens; keep it open while you use the app. Your browser opens at `http://localhost:8080`.
 5. **On your phone:** connect to the same Wi-Fi, click **📱 Phone** in the app and scan the QR code. If Windows Firewall asks about Python, allow it on **Private networks**.
 
 After setup you can switch off the internet. Everything works offline.
 
+The app uses **port 8080**. To use another port, run `set DTC_PORT=9000` in the Command Prompt before `start_windows.bat`.
+
 ## Make a video (v1.5.0): the easiest way
 
-Open **✦ Make a video** in the left menu (or http://localhost:8000/make). Four steps:
+Open **✦ Make a video** in the left menu (or http://localhost:8080/make). Four steps:
 
 | Step | What you do |
 |---|---|
@@ -117,7 +119,7 @@ Open **✦ Make a video** in the left menu (or http://localhost:8000/make). Four
 | **3. Voice-over** | Any installed voice, including **your cloned voice**. Click ▶ to hear the first scene. |
 | **4. Video type** | **YouTube** 16:9 · **Instagram Reel / YouTube Shorts** 9:16 · **Corporate video** 16:9 (logo intro and outro, corporate music, captions) · **LinkedIn / feed** 1:1. Choose the music and captions, then **Make the video**. |
 
-**▦ My projects** (http://localhost:8000/projects) lists every project with its videos, PowerPoint and
+**▦ My projects** (http://localhost:8080/projects) lists every project with its videos, PowerPoint and
 subtitles: play, download, **Continue** (back into these steps) or delete. Each video you make is kept
 with its type and date, so making a Reel does not overwrite your corporate video.
 
@@ -296,7 +298,7 @@ The app shows its estimate for **your** laptop before you render.
 ```
 studio/              Video & Voice Studio (static page: studio.html, css/, js/, vendor/ffmpeg)
 app/
-  main.py            web server + API (Flask, served by waitress on 0.0.0.0:8000); also serves /studio/
+  main.py            web server + API (Flask, served by waitress on 0.0.0.0:8080); also serves /studio/
   speech_api.py      OpenAI-compatible /v1/audio/speech + /v1/audio/voices for the studio
   config.py          brand, folders, video settings, 15-minute limit
   layout.py          slide layout shared by PPTX and video (+ presenter bubble positions)
