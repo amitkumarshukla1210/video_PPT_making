@@ -155,3 +155,72 @@ def scenes_from_prompt(idea, template="inspiration", scenes=5, language="en", st
         raise llm.LLMError("The local AI did not return usable scenes. Try a more specific idea.")
     script = "\n\n".join(f"# {s['title']}\n{s['line']}" if s["title"] else s["line"] for s in out)
     return {"script": script, "scenes": out}
+
+
+DOC_CHARS = 12_000      # how much of a document the AI reads (about 3000 words)
+VIDEO_STYLES = {
+    "youtube": "a YouTube explainer video: friendly, clear, a strong hook in the first scene",
+    "reel": "a short vertical Instagram / YouTube Shorts reel: punchy, fast, one idea per scene, very short lines",
+    "corporate": "a corporate video: professional, confident, factual, for customers and management",
+}
+
+
+def _doc_items(data):
+    out = []
+    for sc in data.get("scenes", []) if isinstance(data, dict) else []:
+        line = str(sc.get("line") or "").strip()
+        if not line:
+            continue
+        pts = sc.get("points") or []
+        pts = [str(p).strip() for p in (pts if isinstance(pts, list) else [pts]) if str(p).strip()][:4]
+        out.append({"title": str(sc.get("title") or "").strip()[:80], "line": line, "points": pts,
+                    "image": str(sc.get("image") or sc.get("title") or line).strip()})
+    return out
+
+
+def scenes_from_document(text, scenes=8, language="en", video_type="corporate", title="", style="",
+                         progress=lambda f, m: None):
+    """Scene-by-scene video script from a document or web page: on-screen title, 2-4 short points,
+    spoken narration and a picture prompt per scene. Only facts from the document are used."""
+    scenes = max(2, min(MAX_SCENES, int(scenes or 8)))
+    doc = text[:DOC_CHARS]
+    kind = VIDEO_STYLES.get(video_type, VIDEO_STYLES["corporate"])
+    words = "max 18 words" if video_type == "reel" else "2-3 sentences, max 45 words"
+    system = ("You turn documents into video scripts. Use only facts from the document; never invent numbers, "
+              "names or claims. Answer in JSON only.")
+    look = f"; visual style: {style}" if style else ""
+    rules = (f"Each scene: a short on-screen title (max 6 words), 2-4 short on-screen points (max 8 words each), "
+             f"the spoken narration in {lang_name(language)} ({words}), and an English picture prompt for an image "
+             f"generator (concrete subject, setting, light; no text in the image{look}). ")
+    head = f"Document{(' — ' + title) if title else ''}:\n\"\"\"\n{doc}\n\"\"\"\n\n"
+    fmt = 'Return JSON: {"scenes": [{"title": "...", "points": ["..."], "line": "...", "image": "..."}]}'
+    progress(0.05, "The AI is reading the document")
+    if scenes <= SCENE_CHUNK:
+        out = _doc_items(llm.generate_json(
+            head + f"Write {scenes} scenes for {kind}, covering the document from start to end. "
+            "First scene: the hook/introduction. Last scene: summary and call to action. " + rules + fmt,
+            system, temperature=0.5, num_ctx=8192))
+    else:
+        plan = llm.generate_json(
+            head + f"Plan {kind} of exactly {scenes} scenes covering this document from start to end: "
+            f"exactly {scenes} numbered beats, one short sentence each (hook first, call to action last). "
+            'Return JSON: {"beats": ["...", "..."]}', system, temperature=0.4, num_ctx=8192)
+        beats = [str(b).strip() for b in (plan.get("beats") or []) if str(b).strip()] if isinstance(plan, dict) else []
+        if len(beats) < scenes // 2:
+            raise llm.LLMError("The local AI could not plan the video. Try again, or fewer scenes.")
+        beats = (beats + beats[-1:] * scenes)[:scenes]
+        outline = "\n".join(f"{k + 1}. {b}" for k, b in enumerate(beats))
+        out = []
+        for c in range(0, scenes, SCENE_CHUNK):
+            part = list(range(c, min(scenes, c + SCENE_CHUNK)))
+            progress(0.1 + 0.9 * c / scenes, f"Writing scenes {part[0] + 1}–{part[-1] + 1} of {scenes}")
+            prev = f'Previous scene: "{out[-1]["line"]}"\n' if out else ""
+            got = _doc_items(llm.generate_json(
+                head + f"Video plan:\n{outline}\n\n{prev}Write scenes {part[0] + 1} to {part[-1] + 1} only, "
+                "one per plan beat. " + rules + fmt, system, temperature=0.5, num_ctx=8192))
+            if not got:
+                raise llm.LLMError(f"The local AI skipped scenes {part[0] + 1}–{part[-1] + 1}. Please try again.")
+            out += got[:len(part)]
+    if len(out) < 2:
+        raise llm.LLMError("The local AI did not return usable scenes from this document.")
+    return out

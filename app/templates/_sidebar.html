@@ -1,0 +1,17 @@
+{% set h = '' if page == 'home' else '/' %}
+<aside class="app-sidebar" aria-label="Main navigation">
+  <a class="sidebar-brand" href="/"><img src="/static/logo.png" alt=""><span>Design to Cost</span></a>
+  <div class="sidebar-label">Create</div>
+  <a class="sidebar-link{{ ' active' if page == 'make' }}" href="/make"><span>✦</span> Make a video</a>
+  <a class="sidebar-link{{ ' active' if page == 'projects' }}" href="/projects"><span>▦</span> My projects</a>
+  <div class="sidebar-label">Workspace</div>
+  <a class="sidebar-link{{ ' active' if page == 'home' }}" href="{{ h }}#s-home"><span>⌂</span> Home</a>
+  <a class="sidebar-link" href="{{ h }}#s-project"><span>▤</span> Presentation</a>
+  <a class="sidebar-link" href="{{ h }}#s-voice"><span>♫</span> Voice-over</a>
+  <a class="sidebar-link" href="{{ h }}#s-slides"><span>▧</span> Images &amp; slides</a>
+  <a class="sidebar-link" href="{{ h }}#s-build"><span>▣</span> Video &amp; export</a>
+  <a class="sidebar-link" href="/studio/"><span>◉</span> Video &amp; Voice Studio</a>
+  <div class="sidebar-label">Your projects</div>
+  <div class="sidebar-note">Projects, videos and files stay on this device.</div>
+  <div class="sidebar-footer"><span class="offline-dot"></span> Offline-first workspace</div>
+</aside>

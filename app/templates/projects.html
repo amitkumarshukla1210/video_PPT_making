@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My projects — Design to Cost</title>
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="stylesheet" href="/static/dtc-theme.css">
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/make.css">
+</head>
+<body>
+{% include '_sidebar.html' %}
+<header>
+  <div class="header-inner">
+    <a class="brand" href="/">
+      <img src="/static/logo.png" alt="Design to Cost logo">
+      <span class="brand-text"><span class="name">Design to Cost</span><span class="tagline">My projects · v{{ version }}</span></span>
+    </a>
+    <div class="top-actions"><a class="btn btn-primary" href="/make">✦ Make a new video</a></div>
+  </div>
+</header>
+<main class="container projects">
+  <div class="proj-head">
+    <div class="kicker">My projects</div>
+    <h1>Your projects, videos and files</h1>
+    <p class="muted">Everything here is saved on this laptop in the <code>projects</code> folder. Play a video, download it, or open the project again to change it.
+      Projects made in the Video &amp; Voice Studio are saved in the browser instead — open the Studio and use <b>Open…</b>.</p>
+  </div>
+  <div class="proj-tools">
+    <input id="search" type="search" placeholder="Search projects…" aria-label="Search projects">
+    <label class="check"><input type="checkbox" id="onlyVideos"> Only projects with a video</label>
+    <span class="muted" id="count"></span>
+  </div>
+  <div id="list" class="proj-list"></div>
+</main>
+<footer><div class="footnote">© Design to Cost · My projects · version {{ version }} · runs offline on this laptop</div></footer>
+<div id="toast" class="toast hidden"></div>
+<script src="/static/projects.js"></script>
+</body>
+</html>

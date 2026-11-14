@@ -106,7 +106,25 @@ You only do steps 1–3 once.
 
 After setup you can switch off the internet. Everything works offline.
 
-## How to use it
+## Make a video (v1.5.0): the easiest way
+
+Open **✦ Make a video** in the left menu (or http://localhost:8000/make). Four steps:
+
+| Step | What you do |
+|---|---|
+| **1. Source** | Choose what the video is about:<br>• **PowerPoint** (.pptx)<br>• **Pictures**<br>• **Document**: PDF (each page becomes a scene with its picture), Word .docx, text or a saved web page (.html)<br>• **Web link**<br>• **Paste text**<br>• **Just an idea**<br>Pick the language, the video type and the number of scenes. |
+| **2. Script, scene by scene** | Each scene shows its picture, the on-screen title and the narration. The local AI writes it; without the AI you get an offline first draft. Edit anything, remove scenes, **rewrite with AI**, or **create pictures** for scenes without one. |
+| **3. Voice-over** | Any installed voice, including **your cloned voice**. Click ▶ to hear the first scene. |
+| **4. Video type** | **YouTube** 16:9 · **Instagram Reel / YouTube Shorts** 9:16 · **Corporate video** 16:9 (logo intro and outro, corporate music, captions) · **LinkedIn / feed** 1:1. Choose the music and captions, then **Make the video**. |
+
+**▦ My projects** (http://localhost:8000/projects) lists every project with its videos, PowerPoint and
+subtitles: play, download, **Continue** (back into these steps) or delete. Each video you make is kept
+with its type and date, so making a Reel does not overwrite your corporate video.
+
+A web link is opened once from your laptop to read its text. Pages behind a login cannot be read;
+save them with Ctrl+S and use **Document**.
+
+## How to use it (Presentation workspace, every detail)
 
 | Step | What you do |
 |---|---|

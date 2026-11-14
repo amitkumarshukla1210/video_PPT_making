@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Make a video — Design to Cost</title>
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="stylesheet" href="/static/dtc-theme.css">
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/make.css">
+</head>
+<body>
+{% include '_sidebar.html' %}
+<header>
+  <div class="header-inner">
+    <a class="brand" href="/">
+      <img src="/static/logo.png" alt="Design to Cost logo">
+      <span class="brand-text"><span class="name">Design to Cost</span><span class="tagline">Make a video · v{{ version }}</span></span>
+    </a>
+    <div class="top-actions"><a class="btn btn-outline" href="/projects">▦ My projects</a></div>
+  </div>
+</header>
+
+<main class="container make">
+  <div class="make-head">
+    <div class="kicker">Make a video</div>
+    <h1>From your PPT, pictures, document or a link — to a finished video</h1>
+    <p class="muted">Four steps. Everything runs on this laptop with no API key. You can stop at any step and continue later from <a href="/projects">My projects</a>.</p>
+  </div>
+
+  <ol class="stepper" id="stepper">
+    <li data-step="1" class="current"><b>1</b> Source</li>
+    <li data-step="2"><b>2</b> Script, scene by scene</li>
+    <li data-step="3"><b>3</b> Voice-over</li>
+    <li data-step="4"><b>4</b> Video type &amp; make</li>
+  </ol>
+
+  <!-- 1 · SOURCE -->
+  <section class="card step" id="step1">
+    <h3>1 · What should the video be about?</h3>
+    <div class="kinds" role="radiogroup" aria-label="Source">
+      <label class="kind"><input type="radio" name="kind" value="pptx" checked><span class="k-icon">▤</span><b>PowerPoint</b><small>.pptx — slides, pictures and speaker notes</small></label>
+      <label class="kind"><input type="radio" name="kind" value="pictures"><span class="k-icon">▧</span><b>Pictures</b><small>screenshots or photos, one scene each</small></label>
+      <label class="kind"><input type="radio" name="kind" value="document"><span class="k-icon">▣</span><b>Document</b><small>PDF, Word (.docx), text or HTML file</small></label>
+      <label class="kind"><input type="radio" name="kind" value="url"><span class="k-icon">🔗</span><b>Web link</b><small>a page from your website or intranet</small></label>
+      <label class="kind"><input type="radio" name="kind" value="text"><span class="k-icon">✎</span><b>Paste text</b><small>a report, email or notes</small></label>
+      <label class="kind"><input type="radio" name="kind" value="idea"><span class="k-icon">✦</span><b>Just an idea</b><small>the AI writes the whole story</small></label>
+    </div>
+
+    <div class="src" id="srcFiles">
+      <label for="files" id="filesLabel">Your file(s)</label>
+      <input type="file" id="files" multiple>
+      <p class="muted" id="filesHint"></p>
+    </div>
+    <div class="src hidden" id="srcUrl">
+      <label for="url">Web link</label>
+      <input type="url" id="url" placeholder="https://www.example.com/product-page">
+      <p class="muted">The app opens the page once from this laptop and reads its text. Pages behind a login cannot be read — save the page as HTML (Ctrl+S) and use “Document”.</p>
+    </div>
+    <div class="src hidden" id="srcText">
+      <label for="text" id="textLabel">Text</label>
+      <textarea id="text" rows="7"></textarea>
+    </div>
+
+    <div class="grid-opts">
+      <div><label for="name">Project name</label><input id="name" placeholder="e.g. Steel price impact Q3"></div>
+      <div><label for="language">Language of the voice-over</label><select id="language"></select></div>
+      <div><label for="vtype1">Video type (you can change it in step 4)</label>
+        <select id="vtype1">
+          <option value="corporate">Corporate video · 16:9</option>
+          <option value="youtube">YouTube video · 16:9</option>
+          <option value="reel">Instagram Reel / YouTube Shorts · 9:16</option>
+          <option value="square">LinkedIn / Instagram feed · 1:1</option>
+        </select></div>
+      <div id="scenesBox"><label for="scenes">Number of scenes</label>
+        <select id="scenes">
+          <option value="5">5 · about 45 seconds</option>
+          <option value="8" selected>8 · about 1–1.5 minutes</option>
+          <option value="12">12 · about 2 minutes</option>
+          <option value="20">20 · about 3–4 minutes</option>
+          <option value="36">36 · about 6 minutes</option>
+        </select></div>
+    </div>
+    <label class="check"><input type="checkbox" id="useAi" checked> Let the local AI write the script <span class="muted" id="aiNote"></span></label>
+    <label class="check"><input type="checkbox" id="pics"> Create a picture (local AI) for every scene that has none <span class="muted" id="picNote"></span></label>
+    <div class="row wrap">
+      <button class="btn btn-primary" id="go1">Next: write the script →</button>
+      <span class="muted" id="status1" aria-live="polite"></span>
+    </div>
+    <div class="progress hidden" id="prog1"><div class="bar"><div></div></div><p class="muted"></p></div>
+  </section>
+
+  <!-- 2 · SCRIPT -->
+  <section class="card step hidden" id="step2">
+    <div class="step-head"><h3>2 · Check the script, scene by scene</h3><span class="muted" id="scriptStats"></span></div>
+    <p class="muted">Each scene shows its picture, the on-screen title and what the voice will say. Change anything you like — it is saved automatically.</p>
+    <div class="row wrap">
+      <button class="btn btn-outline" id="rewrite">🤖 Rewrite all narration with AI</button>
+      <button class="btn btn-outline" id="morePics">🖼 Create pictures for scenes without one</button>
+      <a class="btn btn-outline" id="openPres" href="/">Fine-tune in Presentation ↗</a>
+      <span class="muted" id="status2" aria-live="polite"></span>
+    </div>
+    <div class="progress hidden" id="prog2"><div class="bar"><div></div></div><p class="muted"></p></div>
+    <ol class="scene-list" id="sceneList"></ol>
+    <div class="row wrap nav-row">
+      <button class="btn btn-outline" data-back="1">← Back</button>
+      <button class="btn btn-primary" id="go2">Next: choose the voice →</button>
+    </div>
+  </section>
+
+  <!-- 3 · VOICE -->
+  <section class="card step hidden" id="step3">
+    <h3>3 · Voice-over</h3>
+    <div class="grid-opts">
+      <div><label for="engine">Voice engine</label><select id="engine"></select></div>
+      <div><label for="vlang">Language</label><select id="vlang"></select></div>
+      <div><label for="voice">Voice</label><select id="voice"></select></div>
+      <div><label for="speed">Speed <output id="speedOut">1.00</output></label><input type="range" id="speed" min="0.7" max="1.3" step="0.05" value="1"></div>
+    </div>
+    <p class="muted" id="engineNote"></p>
+    <div class="row wrap">
+      <button class="btn btn-outline" id="hear">▶ Hear the first scene</button>
+      <audio id="player" controls class="hidden"></audio>
+    </div>
+    <div class="row wrap nav-row">
+      <button class="btn btn-outline" data-back="2">← Back</button>
+      <button class="btn btn-primary" id="go3">Next: video type →</button>
+    </div>
+  </section>
+
+  <!-- 4 · VIDEO -->
+  <section class="card step hidden" id="step4">
+    <h3>4 · What kind of video?</h3>
+    <div class="types" role="radiogroup" aria-label="Video type">
+      <label class="type"><input type="radio" name="vtype" value="youtube"><span class="shape s169"></span><b>YouTube video</b><small>16:9 · 1920×1080 · for YouTube and presentations</small></label>
+      <label class="type"><input type="radio" name="vtype" value="reel"><span class="shape s916"></span><b>Instagram Reel / YouTube Shorts</b><small>9:16 · 1080×1920 · vertical, for phones</small></label>
+      <label class="type"><input type="radio" name="vtype" value="corporate" checked><span class="shape s169 corp"></span><b>Corporate video</b><small>16:9 · logo intro and outro, corporate music, captions</small></label>
+      <label class="type"><input type="radio" name="vtype" value="square"><span class="shape s11"></span><b>LinkedIn / feed</b><small>1:1 · 1080×1080 · square</small></label>
+    </div>
+    <div class="grid-opts">
+      <div><label for="music">Background music</label>
+        <select id="music"><option value="auto">Automatic for this video type</option><option value="none">No music</option></select></div>
+      <div><label>&nbsp;</label><label class="check"><input type="checkbox" id="captions" checked> Captions (subtitles) in the picture</label></div>
+    </div>
+    <p class="muted" id="estimate"></p>
+    <div class="row wrap nav-row">
+      <button class="btn btn-outline" data-back="3">← Back</button>
+      <button class="btn btn-primary accent" id="go4">▶ Make the video</button>
+      <button class="btn btn-outline hidden" id="cancel4">Cancel</button>
+    </div>
+    <div class="progress hidden" id="prog4"><div class="bar"><div></div></div><p class="muted"></p></div>
+    <div id="result" class="result hidden"></div>
+  </section>
+</main>
+<footer><div class="footnote">© Design to Cost · Make a video · version {{ version }} · runs offline on this laptop</div></footer>
+<div id="toast" class="toast hidden"></div>
+<script src="/static/make.js"></script>
+</body>
+</html>

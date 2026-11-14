@@ -6,6 +6,21 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.5.0 — 2026-11-14
+- **New: Make a video** (`/make`), a guided page in four steps:
+  1. **Source:** a PowerPoint, pictures, a document (PDF, Word, text, HTML), a web link, pasted text or just an idea.
+  2. **Script, scene by scene:** the local AI writes it (or an offline first draft); edit, remove scenes,
+     rewrite with AI, add AI pictures.
+  3. **Voice-over:** any installed voice, including your cloned voice; hear it first.
+  4. **Video type:** YouTube 16:9, Instagram Reel / YouTube Shorts 9:16, corporate video (logo intro and outro,
+     corporate music, captions) or LinkedIn square 1:1.
+- **New: My projects** (`/projects`): every project with its videos, PowerPoint and subtitles. Play, download,
+  continue, or delete. Each finished video is kept with its type and date, so older versions are not lost.
+- The Video & Voice Studio now opens in light (white) mode, even when Windows is in dark mode.
+  The ◐ button still switches to dark if you want it.
+- Fix: pages no longer run off the right edge of the screen.
+- New package: `pypdfium2` (reads PDF pages). `update_windows.bat` installs it automatically.
+
 ## 1.4.3 — 2026-11-14
 - Fix: `update_windows.bat` said "Update FAILED" after a successful update when the old
   `setup_windows.bat` was already gone. The files were updated; only the final message was wrong.

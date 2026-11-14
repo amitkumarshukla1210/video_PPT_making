@@ -6,12 +6,10 @@ is used. The optional ffmpeg.wasm core is served from tests/.cache for conversio
 import io
 import json
 import math
-import os
 import re
 import struct
 import subprocess
 import sys
-import threading
 import wave
 from pathlib import Path
 
@@ -22,7 +20,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 pw = pytest.importorskip("playwright.sync_api")
 
 from app.ffmpeg_utils import ffmpeg_bin  # noqa: E402
-from app.main import app  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 CORE_DIR = ROOT / "tests" / ".cache" / "ffmpeg-core" / "package" / "dist" / "esm"
@@ -30,24 +27,7 @@ CDN_CORE = re.compile(r"https://cdn\.jsdelivr\.net/npm/@ffmpeg/core@[^/]+/dist/e
 TEMPLATES = ["inspiration", "trailer", "explainer", "product", "documentary"]
 
 
-# ---------- server & browser ----------
-@pytest.fixture(scope="session")
-def base_url():
-    from werkzeug.serving import make_server
-    srv = make_server("127.0.0.1", 0, app, threaded=True)
-    threading.Thread(target=srv.serve_forever, daemon=True).start()
-    yield f"http://127.0.0.1:{srv.server_port}"
-    srv.shutdown()
-
-
-@pytest.fixture(scope="session")
-def browser():
-    with pw.sync_playwright() as p:
-        exe = "/opt/pw-browsers/chromium"
-        b = p.chromium.launch(executable_path=exe if os.path.exists(exe) else None,
-                              args=["--autoplay-policy=no-user-gesture-required"])
-        yield b
-        b.close()
+# server & browser fixtures (base_url, browser): tests/conftest.py
 
 
 def wav_bytes(seconds, freq=300.0, amp=0.3, rate=24000):

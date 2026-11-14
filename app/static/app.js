@@ -42,7 +42,7 @@ async function loadProjects(selectId) {
   const sel = $("#projectSelect");
   sel.innerHTML = list.map((p) => `<option value="${p.id}">${esc(p.name)} (${p.slides})</option>`).join("");
   if (!list.length) { await newProject("Design to Cost"); return; }
-  let id = selectId;
+  let id = selectId || new URLSearchParams(location.search).get("p");   // from My projects / Make a video
   try { id = id || localStorage.getItem("dtc.project"); } catch (e) { /* private mode */ }
   sel.value = list.some((p) => p.id === id) ? id : list[0].id;
   await openProject(sel.value);

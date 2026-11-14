@@ -7,5 +7,6 @@ kokoro-onnx>=0.4      # MIT     Kokoro-82M voice (weights Apache-2.0)
 onnxruntime>=1.18     # MIT     runs the voice model (CPU). GPU: see README
 imageio-ffmpeg>=0.5   # BSD-2   ships an ffmpeg.exe (LGPL/GPL build) if FFmpeg is not installed
 qrcode>=7.4           # BSD     QR code to open the app on your phone
+pypdfium2>=4.30     # Apache-2.0 / BSD-3   PDF pages -> pictures and text (Make a video)
 pyttsx3>=2.90; sys_platform == "win32"   # MPL-2.0 fallback: Windows built-in voices
 pytest>=8.0           # MIT     tests

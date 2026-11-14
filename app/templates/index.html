@@ -8,21 +8,10 @@
 <link rel="apple-touch-icon" href="/static/logo_hd.png">
 <link rel="stylesheet" href="/static/dtc-theme.css">
 <link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/make.css">
 </head>
 <body>
-<aside class="app-sidebar" aria-label="Main navigation">
-  <a class="sidebar-brand" href="#s-home"><img src="/static/logo.png" alt=""><span>Design to Cost</span></a>
-  <div class="sidebar-label">Workspace</div>
-  <a class="sidebar-link active" href="#s-home"><span>⌂</span> Home</a>
-  <a class="sidebar-link" href="#s-project"><span>▤</span> Presentation</a>
-  <a class="sidebar-link" href="#s-voice"><span>♫</span> Voice-over</a>
-  <a class="sidebar-link" href="#s-slides"><span>▧</span> Images &amp; slides</a>
-  <a class="sidebar-link" href="#s-build"><span>▣</span> Video &amp; export</a>
-  <a class="sidebar-link" href="/studio/"><span>◉</span> Video &amp; Voice Studio</a>
-  <div class="sidebar-label">Your projects</div>
-  <div class="sidebar-note">Projects and media stay on this device.</div>
-  <div class="sidebar-footer"><span class="offline-dot"></span> Offline-first workspace</div>
-</aside>
+{% set page = 'home' %}{% include '_sidebar.html' %}
 <header>
   <div class="header-inner">
     <a class="brand" href="/">
@@ -68,7 +57,14 @@
     </div>
     <div class="home-section-head"><div><div class="kicker">Create with Design to Cost</div><h2>Choose a workspace</h2></div>
       <button id="sampleProject" type="button" class="btn btn-outline">▶ Create &amp; render sample video</button></div>
+    <a class="make-banner" href="/make">
+      <span class="tool-icon">✦</span>
+      <span><b>Make a video from your PPT, pictures, document or a web link</b>
+      <span>Step by step: the AI writes the script scene by scene, you pick the voice, then choose YouTube, Reel or corporate video.</span></span>
+      <span class="btn btn-primary">Start →</span>
+    </a>
     <div class="tool-grid">
+      <a class="tool-card" href="/projects"><span class="tool-icon">▦</span><b>My projects</b><span>See every project with its videos, PowerPoint and subtitles. Play, download or open again.</span><small>Videos · Files</small></a>
       <a class="tool-card" href="#s-project"><span class="tool-icon">▤</span><b>Presentation</b><span>Build a branded deck from notes, screenshots or a PowerPoint.</span><small>Slides · PowerPoint</small></a>
       <a class="tool-card" href="#s-voice"><span class="tool-icon">♫</span><b>Voice-over</b><span>Write a script, choose an installed local voice and preview narration.</span><small>Script · Local voices</small></a>
       <a class="tool-card" href="#s-slides"><span class="tool-icon">▧</span><b>Picture &amp; video</b><span>Add images, recorded clips and presenter footage to your slides.</span><small>Images · Recording</small></a>
