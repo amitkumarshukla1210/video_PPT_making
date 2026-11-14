@@ -6,9 +6,12 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.5.2 — 2026-11-14
+- Back to **port 8000** (http://localhost:8000), so Design to Cost and other software on port 8080 can run
+  at the same time. Version 1.5.1 used port 8080; update your bookmarks back to :8000.
+
 ## 1.5.1 — 2026-11-14
-- The app now runs on **port 8080**: http://localhost:8080 on the laptop, http://<laptop-IP>:8080 on the phone.
-  Old 8000 bookmarks need updating. A different port can still be set with the environment variable `DTC_PORT`.
+- The app used port 8080 (changed back in 1.5.2).
 
 ## 1.5.0 — 2026-11-14
 - **New: Make a video** (`/make`), a guided page in four steps:

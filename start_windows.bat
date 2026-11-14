@@ -6,8 +6,6 @@ if not exist .venv\Scripts\python.exe (
   pause
   exit /b 1
 )
-REM The app uses port 8080. Another port: set DTC_PORT=9000 before starting.
-if not defined DTC_PORT set "DTC_PORT=8080"
-start "" cmd /c "timeout /t 4 >nul & start http://localhost:%DTC_PORT%"
+start "" cmd /c "timeout /t 4 >nul & start http://localhost:8000"
 .venv\Scripts\python.exe -m app.main
 pause
