@@ -1,5 +1,5 @@
-"""Local web server. Open http://localhost:8000 on the laptop, or the Wi-Fi address it prints
-(e.g. http://192.168.1.20:8000) on your phone. All rendering happens on the laptop."""
+"""Local web server. Open http://localhost:8080 on the laptop, or the Wi-Fi address it prints
+(e.g. http://192.168.1.20:8080) on your phone. All rendering happens on the laptop."""
 import socket
 import sys
 import uuid

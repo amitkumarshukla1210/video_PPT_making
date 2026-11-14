@@ -5,7 +5,7 @@
 | Area | What exists |
 |---|---|
 | Purpose | "Design to Cost — Presentation & Video Studio": screenshots + notes → branded PPTX + narrated MP4, offline on Windows |
-| Stack | Python 3.11–3.13, Flask + waitress (local server on `0.0.0.0:8000`), python-pptx, Pillow, FFmpeg (system or `imageio-ffmpeg`), Kokoro / Piper / eSpeak / Windows SAPI TTS, optional Chatterbox voice clone in `.venv-clone` |
+| Stack | Python 3.11–3.13, Flask + waitress (local server on `0.0.0.0:8080`), python-pptx, Pillow, FFmpeg (system or `imageio-ffmpeg`), Kokoro / Piper / eSpeak / Windows SAPI TTS, optional Chatterbox voice clone in `.venv-clone` |
 | Front end | One server-rendered page `app/templates/index.html` + plain ES2020 `app/static/app.js` + `style.css` on top of `dtc-theme.css` (Design to Cost theme: navy `#152238`, blue `#1f5fa8`, orange accent `#e07b1f`, Segoe UI). **No build tool, no npm.** |
 | Tests | `pytest` (`tests/test_pipeline.py`, `tests/test_features.py`): end-to-end FFmpeg renders with eSpeak |
 | CI | none |
