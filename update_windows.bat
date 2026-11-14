@@ -48,6 +48,8 @@ set "PIP_RETRIES=10"
 .venv\Scripts\python.exe -m pip install -q -r requirements.txt
 if errorlevel 1 goto fail
 if exist .venv-clone\Scripts\python.exe .venv-clone\Scripts\python.exe -m pip install -q -r requirements-clone.txt
+if exist .venv-image\Scripts\python.exe .venv-image\Scripts\python.exe -m pip install -q -r requirements-image.txt
+.venv\Scripts\python.exe -c "import faster_whisper" >nul 2>nul && .venv\Scripts\python.exe -m pip install -q -r requirements-ai.txt
 
 set "NEW=unknown"
 if exist VERSION set /p NEW=<VERSION

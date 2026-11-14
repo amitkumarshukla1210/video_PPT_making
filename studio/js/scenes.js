@@ -113,6 +113,7 @@ export function makeScene(partial = {}, template, index = 0) {
     transition: partial.transition ?? null, // null = template default
     fixedSeconds: partial.fixedSeconds ?? null,
     voice: partial.voice ?? null, // null = project voice; else a per-scene override
+    imagePrompt: partial.imagePrompt ?? "", // picture creator prompt (blank = title + words)
     audio: null, // { mediaId, seconds, key }
   };
 }

@@ -1,0 +1,6 @@
+# Picture creator, installed into .venv-image by: setup_windows.bat images
+# Stable Diffusion LCM on OpenVINO (Intel GPU / CPU). torch CPU wheels come from the PyTorch index.
+optimum-intel[openvino,diffusers]>=2.0
+diffusers>=0.30
+transformers>=4.45
+pillow>=10.0

@@ -96,6 +96,60 @@ def _split_caption(text, max_words=12):
     return out
 
 
+def _add_transition_sounds(narration_wav, times, level=0.35):
+    """Mix a soft whoosh into the audio track at each slide change (peak on the cut)."""
+    import numpy as np
+    from .ai import library
+    with wave.open(str(library.sfx_file("whoosh")), "rb") as r:
+        fx = np.frombuffer(r.readframes(r.getnframes()), "<i2").astype(np.float32) / 32768
+        fx_rate = r.getframerate()
+    if fx_rate != AUDIO_RATE:
+        fx = np.interp(np.arange(0, len(fx), fx_rate / AUDIO_RATE), np.arange(len(fx)), fx)
+    with wave.open(str(narration_wav), "rb") as r:
+        params = r.getparams()
+        track = np.frombuffer(r.readframes(r.getnframes()), "<i2").astype(np.float32) / 32768
+    track = track.copy()
+    for t in times:
+        i = int((t - len(fx) / AUDIO_RATE / 2) * AUDIO_RATE)
+        if i < 0 or i >= len(track):
+            continue
+        j = min(len(track), i + len(fx))
+        track[i:j] += fx[: j - i] * level
+    with wave.open(str(narration_wav), "wb") as w:
+        w.setparams(params)
+        w.writeframes((np.clip(track, -1, 1) * 32767).astype("<i2").tobytes())
+
+
+def _spread(chunks, start, duration):
+    """Caption chunks over [start, start + duration], in proportion to their length."""
+    total = sum(len(c) for c in chunks) or 1
+    out, ct = [], start
+    for c in chunks:
+        dur = duration * len(c) / total
+        out.append((ct, ct + dur - 0.05, c))
+        ct += dur
+    return out
+
+
+def _transcript(wav, key, lang, say):
+    """Whisper captions for a recording, cached next to its audio. None when Whisper is not installed."""
+    from .ai import stt
+    cache = wav.with_suffix(".captions.json")
+    if cache.exists():
+        try:
+            data = json.loads(cache.read_text(encoding="utf-8"))
+            if data.get("key") == key:
+                return [tuple(x) for x in data["segments"]] or None
+        except (ValueError, KeyError):
+            pass
+    if not stt.status()["available"]:
+        return None
+    say("Writing captions from your recording (Whisper)")
+    segments = stt.transcribe(wav, lang)
+    cache.write_text(json.dumps({"key": key, "segments": segments}, ensure_ascii=False), encoding="utf-8")
+    return segments or None
+
+
 def _ts(t):
     ms = int(round(t * 1000))
     h, ms = divmod(ms, 3600000)
@@ -162,17 +216,21 @@ def render_video(proj, progress=lambda stage, frac, msg: None, cancelled=lambda:
 
     # 2) sound per slide: your recording's own audio, or the voice-over (cached by text + voice)
     durations = [0.0] * n
+    spoken = [None] * n   # [(start, end, text)] from your own recordings, when Whisper is installed
     todo = []
     for i, s in enumerate(slides):
         wav = audio / f"slide_{i:03d}.wav"
         stamp = wav.with_suffix(".key")
         text = (s.get("script") or "").strip()
         if s.get("clip"):
-            key = _hash("clip", s["clip"])
+            clean = proj.get("clean_audio", True)
+            key = _hash("clip", s["clip"], clean)
             if not (wav.exists() and stamp.exists() and stamp.read_text() == key):
-                progress("Voice-over", i / n, f"Taking sound from your recording, slide {i + 1}")
-                media.clip_audio(base / s["clip"], wav)
+                progress("Voice-over", i / n, f"Taking sound from your recording, slide {i + 1}"
+                         + (" (removing background noise)" if clean else ""))
+                media.clip_audio(base / s["clip"], wav, clean=clean)
                 stamp.write_text(key)
+            spoken[i] = _transcript(wav, key, v.get("lang"), lambda m: progress("Voice-over", i / n, m))
         elif text:
             key = _hash(text, v, proj.get("voice_sample") if v["engine"] == "clone" else None)
             if not (wav.exists() and stamp.exists() and stamp.read_text() == key):
@@ -220,18 +278,19 @@ def render_video(proj, progress=lambda stage, frac, msg: None, cancelled=lambda:
                 data = data[: (seg_samples - lead) * 2]
                 w.writeframes(data)
                 written = lead + len(data) // 2
-                caps = _split_caption(slides[i].get("script") or "")
-                total_chars = sum(len(c) for c in caps) or 1
-                ct = t + LEAD_IN
-                for c in caps:
-                    dur = d * len(c) / total_chars
-                    cues.append((ct, ct + dur - 0.05, c))
-                    ct += dur
+                if spoken[i]:     # exact captions from what you actually said
+                    for a, b, said in spoken[i]:
+                        cues += _spread(_split_caption(said), t + LEAD_IN + a, max(b - a, 0.3))
+                else:
+                    cues += _spread(_split_caption(slides[i].get("script") or ""), t + LEAD_IN, d)
             w.writeframes(b"\0\0" * max(seg_samples - written, 0))
             timeline.append({"slide": i + 1, "title": slides[i]["title"], "start": round(t, 3),
                              "end": round(t + nf / FPS, 3)})
             t += nf / FPS
         w.writeframes(b"\0\0" * round(sting_frames / FPS * AUDIO_RATE))
+    if proj.get("sfx"):
+        progress("Timeline", 0.5, "Adding transition sounds")
+        _add_transition_sounds(narration, [e["start"] for e in timeline[1:]] + ([timeline[-1]["end"]] if sting else []))
     srt = out / "subtitles.srt"
     write_srt(cues, srt)
     (out / "timeline.json").write_text(json.dumps(timeline, indent=1, ensure_ascii=False), encoding="utf-8")

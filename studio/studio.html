@@ -25,7 +25,8 @@
   <a class="side-link" href="#musicSection">♪ <span>Music</span></a>
   <a class="side-link" href="#exportSection">▶ <span>Video export</span></a>
   <div class="side-info"><b>Offline-first</b><span>Project data and media stay in this browser. Local voice synthesis uses the running Design to Cost app.</span></div>
-  <div class="side-unavailable"><b>Not included offline</b><span>Cloud dubbing, speech-to-text and hosted voice services are not connected in this workspace.</span></div>
+  <div class="side-info"><b>Local AI</b><span>Scene writing, picture creation and the music library run in the Design to Cost app on this computer — no API key.</span></div>
+  <div class="side-unavailable"><b>Not included offline</b><span>Cloud dubbing and hosted voice services are not connected in this workspace.</span></div>
 </aside>
 <div class="studio-main">
 <header class="topbar">
@@ -63,12 +64,35 @@
         <button class="btn btn-outline" id="sampleBtn">Use template script</button>
         <span class="muted" id="scriptStats" aria-live="polite"></span>
       </div>
+      <details class="ai-box" id="aiBox">
+        <summary>🤖 Write scenes from an idea — local AI, no API key</summary>
+        <label class="field">Your idea (prompt)<textarea id="aiIdea" rows="3" placeholder="e.g. A 60-second cinematic story: how a small engineering team cut product cost by 18% by designing with live material prices"></textarea></label>
+        <div class="grid2">
+          <label class="field">Video length<select id="aiLength">
+            <option value="5">Short · about 40 s (5 scenes)</option>
+            <option value="8">About 1 minute (8 scenes)</option>
+            <option value="22">About 3 minutes (22 scenes)</option>
+            <option value="36">About 5 minutes (36 scenes)</option>
+            <option value="55">About 8 minutes (55 scenes)</option>
+            <option value="custom">Custom number of scenes…</option>
+          </select></label>
+          <label class="field hidden" id="aiScenesField">Number of scenes (2–60)<input type="number" id="aiScenes" min="2" max="60" value="5"></label>
+          <label class="field">Picture style (optional)<input id="aiStyle" placeholder="e.g. warm cinematic light, modern factory"></label>
+          <label class="field">Language<select id="aiLanguage"><option value="en">English</option><option value="hi">Hindi</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option><option value="ar">Arabic</option><option value="pt">Portuguese</option></select></label>
+          <label class="check"><input type="checkbox" id="aiPictures" checked> Also create a picture for every scene</label>
+        </div>
+        <div class="row">
+          <button class="btn btn-primary" id="aiScenesBtn">🤖 Write scenes</button>
+          <span class="muted" id="aiStudioStatus" aria-live="polite"></span>
+        </div>
+      </details>
     </section>
 
     <section class="panel" id="scenesSection" aria-labelledby="h-scenes">
       <div class="panel-head">
         <h2 id="h-scenes">2 · Scenes <span class="muted" id="sceneCount"></span></h2>
-        <button class="btn btn-outline" id="addSceneBtn">+ Add scene</button>
+<span class="row" style="margin:0"><button class="btn btn-outline" id="picturesAllBtn" title="Create a picture from each scene's picture prompt">🖼 Pictures for all scenes</button>
+        <button class="btn btn-outline" id="addSceneBtn">+ Add scene</button></span>
       </div>
       <ol id="scenes" class="scenes" aria-label="Scenes"></ol>
       <p class="muted empty" id="scenesEmpty">No scenes yet — write a script and click <b>Split into scenes</b>.</p>
@@ -117,6 +141,10 @@
         <input type="file" id="musicFile" accept="audio/*" class="visually-hidden">
         <button class="btn btn-outline" id="musicClear">Remove</button>
         <span class="muted" id="musicName"></span>
+      </div>
+      <div class="row">
+        <select id="libMood" aria-label="Music library mood"><option value="">Music library (made by the app, free to use)…</option></select>
+        <button class="btn btn-outline" id="libUse">Use this music</button>
       </div>
       <div class="grid2">
         <label class="field">Volume <output id="musicVolOut"></output><input type="range" id="musicVol" min="0" max="0.8" step="0.02"></label>

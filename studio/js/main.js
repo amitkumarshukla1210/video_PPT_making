@@ -8,6 +8,7 @@ import { ENGINES, VoiceError, loadSettings, saveSettings, loadPresets, savePrese
 import { webspeech } from "./voices/webspeech.js";
 import { drawFrame, frameSize, syncVideos } from "./render/draw.js";
 import { decodeBlob, scheduleAudio } from "./render/audio.js";
+import { aiStatus, writeScenes, writeScenesLong, createImage, libraryList, libraryMusic, scenePicturePrompt } from "./ai.js";
 import { prepareVoices, recordVideo, exportAudio, loadAssets, loadAudio, disposeAssets } from "./render/export.js";
 
 const $ = (s, root = document) => root.querySelector(s);
@@ -129,6 +130,7 @@ function renderScenes() {
         <div class="scene-tools">
           <button type="button" class="icon-btn small" data-act="say" aria-label="Preview voice of scene ${i + 1}" title="Preview voice">▶</button>
           <button type="button" class="icon-btn small" data-act="regen" aria-label="Regenerate voice of scene ${i + 1}" title="Regenerate voice">↻</button>
+          <button type="button" class="icon-btn small" data-act="picture" aria-label="Create a picture for scene ${i + 1}" title="Create picture (local AI)">🖼</button>
           <button type="button" class="icon-btn small" data-act="up" aria-label="Move scene ${i + 1} up" title="Move up" ${i === 0 ? "disabled" : ""}>↑</button>
           <button type="button" class="icon-btn small" data-act="down" aria-label="Move scene ${i + 1} down" title="Move down" ${i === scenes.length - 1 ? "disabled" : ""}>↓</button>
           <button type="button" class="icon-btn small danger" data-act="del" aria-label="Delete scene ${i + 1}" title="Delete">✕</button>
@@ -150,6 +152,7 @@ function renderScenes() {
             <option value="">Project voice</option>
             ${presets.map((p) => `<option value="${esc(p.name)}" ${s.voice && s.voice.preset === p.name ? "selected" : ""}>${esc(p.name)}</option>`).join("")}
           </select></label>
+          <label class="prompt-field">Picture prompt <input data-k="imagePrompt" value="${esc(s.imagePrompt || "")}" placeholder="blank = title + words" aria-label="Picture prompt for scene ${i + 1}"></label>
           <label>Length <input type="number" data-k="seconds" min="1" max="300" step="0.5" value="${s.fixedSeconds ?? ""}" placeholder="auto" style="width:72px" aria-label="Length of scene ${i + 1} in seconds (blank = automatic)"></label>
           <span data-dur>${it ? `${(it.end - it.start).toFixed(1)} s${it.estimated ? " (est.)" : ""}` : ""}</span>
           <span data-badge>${voiceBadge(s)}</span>
@@ -533,6 +536,90 @@ async function runNarratedSample() {
   }
 }
 
+// ---------- local AI: scenes from an idea, pictures from prompts, music library ----------
+let picturesBusy = false;
+
+async function runAiScenes() {
+  const idea = $("#aiIdea").value.trim();
+  if (!idea) return toast("Describe your idea first.", true);
+  if (store.project.scenes.length && !confirm("Replace the current script and scenes with the AI's scenes?")) return;
+  const btn = $("#aiScenesBtn");
+  btn.disabled = true;
+  $("#aiStudioStatus").textContent = "⏳ The local AI is writing your scenes (about 30–90 s)…";
+  try {
+    const sel = $("#aiLength").value;
+    const count = Math.max(2, Math.min(60, sel === "custom" ? Number($("#aiScenes").value) || 5 : Number(sel)));
+    const args = { idea, template: store.project.template, scenes: count, language: $("#aiLanguage").value, style: $("#aiStyle").value.trim() };
+    const out = count > 8
+      ? await writeScenesLong(args, (m) => ($("#aiStudioStatus").textContent = `⏳ ${m} — a long video takes the local AI several minutes`))
+      : await writeScenes(args);
+    store.splitFromScript(out.script);
+    store.update((p) => {
+      p.scenes.forEach((s, k) => { if (out.scenes[k]) s.imagePrompt = out.scenes[k].image; });
+      if (!p.title || p.title === "Design to Cost") p.title = out.scenes[0]?.title || p.title;
+    }, { reason: "split" });
+    $("#aiStudioStatus").textContent = `✔ ${store.project.scenes.length} scenes written. Edit them freely.`
+      + (store.project.scenes.length > 12 && $("#aiPictures").checked ? " Creating the pictures takes a while on a laptop (about 20–60 s each)." : "");
+    if ($("#aiPictures").checked) await createPictures(store.project.scenes.map((s) => s.id));
+  } catch (e) {
+    $("#aiStudioStatus").textContent = `❌ ${e.message || e}`;
+    toast(e.message || String(e), true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function createPictures(ids) {
+  if (picturesBusy) return toast("Pictures are already being created — please wait.");
+  picturesBusy = true;
+  $("#picturesAllBtn").disabled = true;
+  let done = 0;
+  try {
+    for (const id of ids) {
+      const scene = store.project.scenes.find((s) => s.id === id);
+      if (!scene) continue;
+      $("#aiStudioStatus").textContent = `⏳ Creating picture ${done + 1} of ${ids.length} (about 20–60 s each on a laptop)…`;
+      toast(`Creating picture ${done + 1} of ${ids.length}…`);
+      const blob = await createImage(scenePicturePrompt(scene, store.project.title), store.project.format.aspect);
+      const mediaId = await putMedia(blob, "image");
+      const now = store.project.scenes.find((s) => s.id === id);
+      if (now) store.editScene(id, { background: { ...now.background, kind: "image", mediaId } });
+      done += 1;
+    }
+    $("#aiStudioStatus").textContent = `✔ ${done} picture(s) created. Preview the video to see them with slow pan and zoom.`;
+  } catch (e) {
+    $("#aiStudioStatus").textContent = `❌ ${e.message || e}`;
+    toast(e.message || String(e), true);
+  } finally {
+    picturesBusy = false;
+    $("#picturesAllBtn").disabled = false;
+  }
+}
+
+async function loadMusicLibrary() {
+  try {
+    const lib = await libraryList();
+    $("#libMood").innerHTML = `<option value="">Music library (made by the app, free to use)…</option>`
+      + lib.music.map((m) => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join("");
+  } catch {
+    $("#libMood").innerHTML = `<option value="">Music library: start the Design to Cost app</option>`;
+  }
+}
+
+async function useLibraryMusic() {
+  const mood = $("#libMood").value;
+  if (!mood) return toast("Choose a mood from the music library first.", true);
+  try {
+    const blob = await libraryMusic(mood);
+    const mediaId = await putMedia(blob, "music");
+    const label = $("#libMood").selectedOptions[0]?.textContent || mood;
+    store.update((p) => { p.music.mediaId = mediaId; p.music.name = label; }, { reason: "music" });
+    toast(`Using “${label}”. It is lowered automatically under the voice.`);
+  } catch (e) {
+    toast(e.message || String(e), true);
+  }
+}
+
 // ---------- project files ----------
 async function saveFile() {
   try {
@@ -603,6 +690,13 @@ function bind() {
     store.update((p) => (p.script = tpl.sample), { reason: "meta" });
   });
   $("#demoBtn").addEventListener("click", runNarratedSample);
+  $("#aiScenesBtn").addEventListener("click", runAiScenes);
+  $("#aiLength").addEventListener("change", (e) => $("#aiScenesField").classList.toggle("hidden", e.target.value !== "custom"));
+  $("#picturesAllBtn").addEventListener("click", () => {
+    if (!store.project.scenes.length) return toast("Add or write scenes first.", true);
+    createPictures(store.project.scenes.map((s) => s.id));
+  });
+  $("#libUse").addEventListener("click", useLibraryMusic);
   $("#addSceneBtn").addEventListener("click", () => {
     store.update((p) => p.scenes.push(makeScene({ text: "" }, getTemplate(p.template), p.scenes.length)), { reason: "add" });
     document.querySelector("#scenes .scene:last-child textarea")?.focus();
@@ -612,7 +706,7 @@ function bind() {
   list.addEventListener("input", (e) => {
     const li = e.target.closest(".scene");
     const k = e.target.dataset.k;
-    if (!li || !["title", "text"].includes(k)) return;
+    if (!li || !["title", "text", "imagePrompt"].includes(k)) return;
     store.editScene(li.dataset.id, { [k]: e.target.value }, `${li.dataset.id}:${k}`);
   });
   list.addEventListener("change", async (e) => {
@@ -649,6 +743,7 @@ function bind() {
     else if (act === "del") store.deleteScene(id);
     else if (act === "say") sceneVoicePreview(id);
     else if (act === "regen") sceneVoicePreview(id, true);
+    else if (act === "picture") createPictures([id]);
     else if (act === "clearmedia") {
       const scene = store.project.scenes.find((s) => s.id === id);
       store.editScene(id, { background: { ...scene.background, kind: "color", mediaId: null } });
@@ -809,6 +904,11 @@ async function init() {
   bind();
   render("init");
   showVersion();
+  loadMusicLibrary();
+  aiStatus().then((st) => {
+    if (!st.llm.available) $("#aiStudioStatus").textContent = st.llm.info;
+    $("#picturesAllBtn").title = st.images.available ? "Create a picture from each scene's picture prompt" : st.images.info;
+  });
   await loadVoiceList({ quiet: true });
   document.body.dataset.ready = "true"; // for tests
 }

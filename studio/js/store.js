@@ -49,6 +49,7 @@ export function validateProject(data) {
     transition: s.transition || null,
     fixedSeconds: Number(s.fixedSeconds) > 0 ? Number(s.fixedSeconds) : null,
     voice: s.voice || null,
+    imagePrompt: typeof s.imagePrompt === "string" ? s.imagePrompt.slice(0, 900) : "",
     audio: s.audio && s.audio.mediaId ? s.audio : null,
   }));
   return p;
@@ -196,6 +197,7 @@ export class Store {
       Object.assign(s, fields);
       // changed words make the old voice clip stale
       if ("text" in fields || "voice" in fields) s.audio = null;
-    }, { reason: "scene", coalesce });
+      // a new background must redraw the scene list (its thumbnail); typing only updates labels
+    }, { reason: "background" in fields ? "media" : "scene", coalesce });
   }
 }

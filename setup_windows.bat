@@ -5,7 +5,10 @@ REM  Options:  setup_windows.bat small   -> smaller/faster voice model
 REM            setup_windows.bat gpu     -> use your graphics card for the voice (DirectML)
 REM            setup_windows.bat piper   -> extra languages (Piper voices)
 REM            setup_windows.bat clone   -> voice clone: speak in YOUR voice (about 3 GB)
-REM  Options can be combined, e.g.  setup_windows.bat clone gpu
+REM            setup_windows.bat ai      -> local AI writer/translator (Ollama + Llama 3.2, about 2 GB)
+REM                                         and captions from your recordings (Whisper, about 0.5 GB)
+REM            setup_windows.bat images  -> picture creator from a prompt (about 3 GB)
+REM  Options can be combined, e.g.  setup_windows.bat clone ai images
 REM ============================================================
 cd /d "%~dp0"
 setlocal EnableDelayedExpansion
@@ -23,11 +26,15 @@ set "MODELARGS="
 set "WANTGPU="
 set "WANTPIPER="
 set "WANTCLONE="
+set "WANTAI="
+set "WANTIMAGES="
 for %%a in (%*) do (
   if /i "%%a"=="small" set "MODELARGS=%MODELARGS% --small"
   if /i "%%a"=="gpu" set "WANTGPU=1"
   if /i "%%a"=="piper" set "WANTPIPER=1"
   if /i "%%a"=="clone" set "WANTCLONE=1"
+  if /i "%%a"=="ai" set "WANTAI=1"
+  if /i "%%a"=="images" set "WANTIMAGES=1"
 )
 if defined WANTPIPER set "MODELARGS=%MODELARGS% --piper"
 
@@ -68,6 +75,43 @@ if defined WANTCLONE (
   if errorlevel 1 goto fail
   set "HF_HOME=%CD%\models\hf"
   .venv-clone\Scripts\python.exe scripts\download_clone_model.py
+  if errorlevel 1 goto fail
+)
+
+if defined WANTAI (
+  echo [AI] Captions from recordings: installing faster-whisper...
+  %VPY% -m pip install -r requirements-ai.txt
+  if errorlevel 1 goto fail
+  set "HF_HOME=%CD%\models\hf"
+  %VPY% scripts\download_ai_models.py
+  if errorlevel 1 goto fail
+  echo [AI] Local AI writer: Ollama...
+  where ollama >nul 2>nul
+  if errorlevel 1 (
+    winget install --id Ollama.Ollama -e --accept-package-agreements --accept-source-agreements
+    if errorlevel 1 (
+      echo  Could not install Ollama automatically. Download it from https://ollama.com/download
+      echo  install it, then run:  setup_windows.bat ai   again.
+      goto fail
+    )
+    set "PATH=%LOCALAPPDATA%\Programs\Ollama;!PATH!"
+  )
+  echo [AI] Downloading the writer model llama3.2:3b - about 2 GB, one time...
+  ollama pull llama3.2:3b
+  if errorlevel 1 goto fail
+)
+
+if defined WANTIMAGES (
+  echo [Pictures] Installing the picture creator in its own environment .venv-image ...
+  if not exist .venv-image\Scripts\python.exe %PY% -m venv .venv-image
+  if errorlevel 1 goto fail
+  .venv-image\Scripts\python.exe -m pip install --upgrade pip >nul
+  .venv-image\Scripts\python.exe -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+  if errorlevel 1 goto fail
+  .venv-image\Scripts\python.exe -m pip install -r requirements-image.txt
+  if errorlevel 1 goto fail
+  set "HF_HOME=%CD%\models\hf"
+  .venv-image\Scripts\python.exe scripts\download_image_model.py
   if errorlevel 1 goto fail
 )
 

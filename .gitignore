@@ -25,3 +25,4 @@ tests/.cache/
 .pytest_cache/
 updates/
 backups/
+.venv-image/

@@ -146,6 +146,10 @@ function render() {
   $("#musicName").textContent = proj.music.file ? "✔ music added" : "No music";
   $("#musicVol").value = proj.music.volume; $("#musicVolVal").textContent = Math.round(proj.music.volume * 100) + "%";
   $("#intro").value = proj.intro === false ? "0" : "1";
+  $("#sfx").checked = !!proj.sfx;
+  $("#cleanAudio").checked = proj.clean_audio !== false;
+  $("#libMood").value = proj.music.library || $("#libMood").value;
+  if (proj.language && [...$("#aiLang").options].some((o) => o.value === proj.language.slice(0, 2))) $("#aiLang").value = proj.language.slice(0, 2);
   const pip = proj.pip || {};
   $("#pipEnabled").value = pip.enabled ? "1" : "0";
   $("#pipPosition").value = pip.position || "br";
@@ -254,6 +258,8 @@ async function save() {
   document.querySelectorAll("[data-field]").forEach((el) => { body[el.dataset.field] = el.value; });
   body.voice = proj.voice; body.music = { volume: +$("#musicVol").value };
   body.intro = $("#intro").value === "1";
+  body.sfx = $("#sfx").checked;
+  body.clean_audio = $("#cleanAudio").checked;
   body.pip = { enabled: $("#pipEnabled").value === "1", position: $("#pipPosition").value,
     shape: $("#pipShape").value, size: $("#pipSize").value };
   body.slides = proj.slides.map((s) => ({ id: s.id, title: s.title, notes: s.notes, script: s.script }));
@@ -411,6 +417,20 @@ function bind() {
   $("#logoReset").onclick = async () => { proj = await api(`/api/projects/${proj.id}/logo`, { method: "DELETE" }); render(); };
 
   $("#draftScript").onclick = () => draft(false);
+  $("#aiWriteEmpty").onclick = () => startAi("ai_script", { overwrite: false, language: $("#aiLang").value });
+  $("#aiWriteAll").onclick = () => {
+    if (confirm("Replace ALL narration with a new AI draft?")) startAi("ai_script", { overwrite: true, language: $("#aiLang").value });
+  };
+  $("#dubBtn").onclick = () => startAi("dub", { language: $("#dubLang").value });
+  $("#libPreview").onclick = () => {
+    const a = $("#libAudio"); a.src = `/library/music/${$("#libMood").value}.wav`; a.classList.remove("hidden"); a.play();
+  };
+  $("#libUse").onclick = async () => {
+    await save();
+    proj = await api(`/api/projects/${proj.id}/music_library`, { method: "POST", json: { mood: $("#libMood").value } });
+    render(); toast("Library music added — it is lowered automatically under the voice.");
+  };
+  ["#sfx", "#cleanAudio"].forEach((id) => ($(id).onchange = save));
   $("#redraftScript").onclick = () => { if (confirm("Replace ALL narration with a new draft from your notes?")) draft(true); };
 
   $("#engine").onchange = (e) => { proj.voice.engine = e.target.value; proj.voice.lang = ""; renderVoice(); refreshEstimate(); };
@@ -525,7 +545,42 @@ async function checkJob() {
     $("#exResults").innerHTML = `<video controls class="${vertical ? "vertical" : ""}" src="${x.result.file}?v=${Date.now()}"></video>
       <div><a class="btn btn-primary" href="${x.result.file}?dl=1">⬇ ${esc(x.result.label)} (${mmss(x.result.seconds)})</a></div>`;
   }
-  if (running || x.state === "running") pollTimer = setTimeout(checkJob, 1500);
+  const a = j.ai || { state: "idle" };
+  for (const id of ["#aiWriteEmpty", "#aiWriteAll", "#dubBtn"]) $(id).disabled = a.state === "running";
+  const aiText = a.state === "running" ? `⏳ ${a.message || "Local AI is working…"} · ${mmss(a.elapsed)}`
+    : a.state === "error" ? "❌ " + a.error : "";
+  if (a.state === "running" || a.state === "error") {
+    $(a.result?.project || /Translat|Creat/.test(a.message || "") ? "#dubStatus" : "#aiStatus").textContent = aiText;
+  }
+  if (a.state === "done" && a.result && a.started !== handledAi) {
+    handledAi = a.started;
+    if (a.result.project) {
+      $("#dubStatus").innerHTML = `✔ Created <b>${esc(a.result.name)}</b>. <button class="btn btn-primary small" id="openDub">Open it</button>`;
+      $("#openDub").onclick = () => loadProjects(a.result.project);
+    } else {
+      $("#aiStatus").textContent = `✔ AI wrote narration for ${a.result.written} slide(s). Read it and edit anything you like.`;
+      proj = await api(`/api/projects/${pid}`);
+      render();
+    }
+  }
+  if (running || x.state === "running" || a.state === "running") pollTimer = setTimeout(checkJob, 1500);
+}
+
+let handledAi = null;
+
+async function startAi(path, json) {
+  try {
+    await save();
+    await api(`/api/projects/${proj.id}/${path}`, { method: "POST", json });
+    checkJob();
+  } catch (err) { toast(err.message, true); }
+}
+
+async function loadLibrary() {
+  try {
+    const lib = await api("/api/library");
+    $("#libMood").innerHTML = lib.music.map((m) => `<option value="${m.id}">${esc(m.label)}</option>`).join("");
+  } catch (err) { /* library is optional */ }
 }
 
 (async function init() {
@@ -534,6 +589,15 @@ async function checkJob() {
     bind();
     $("#phoneUrl").textContent = sys.phone_url; $("#phoneUrl").href = sys.phone_url;
     $("#qr").innerHTML = sys.qr_svg;
+    const langs = Object.entries(sys.languages || { en: "English" });
+    $("#aiLang").innerHTML = langs.map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+    $("#dubLang").innerHTML = langs.filter(([k]) => k !== "en").map(([k, v]) => `<option value="${k}" ${k === "hi" ? "selected" : ""}>${esc(v)}</option>`).join("");
+    const ai = sys.ai || {};
+    $("#aiStatus").textContent = ai.llm?.available ? `Local AI ready: ${ai.llm.info}.` : `Not ready: ${ai.llm?.info || "local AI not installed"}`;
+    $("#dubStatus").textContent = ai.llm?.available ? "" : `Needs the local AI: ${ai.llm?.info || ""}`;
+    $("#sttStatus").textContent = ai.stt?.available ? " Captions for your recordings are made from what you actually say (Whisper)."
+      : " Tip: run setup_windows.bat ai to get exact captions from your own recordings.";
+    await loadLibrary();
     await loadProjects();
   } catch (err) { toast("Cannot reach the app: " + err.message, true); }
 })();
