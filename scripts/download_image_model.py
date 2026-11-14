@@ -1,5 +1,5 @@
 """One-time download of the picture-creator model (about 2.5 GB) into models/hf.
-Run by: setup_windows.bat images (inside .venv-image)."""
+Run by: install_once.bat images (inside .venv-image)."""
 import os
 from pathlib import Path
 

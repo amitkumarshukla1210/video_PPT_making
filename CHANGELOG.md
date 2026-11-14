@@ -6,6 +6,11 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.4.1 — 2026-11-14
+- Clearer file names: **`setup_windows.bat` is now `install_once.bat`** (run it once, or again to
+  add an option such as `ai`, `images`, `clone`). Every day you open the app with
+  **`start_windows.bat`**, as before. `update_windows.bat` removes the old `setup_windows.bat`.
+
 ## 1.4.0 — 2026-11-13
 Local AI, all on your laptop, with no API key:
 - **PPT → corporate video:** the AI writes the narration from every slide (title, points, PPT

@@ -167,7 +167,7 @@ function renderSample() {
   $("#sampleInfo").textContent = has ? `✔ Voice sample saved (${proj.voice_sample_seconds || "?"} s). Choose “My cloned voice” as the engine.` : "No voice sample yet.";
   const clone = sys.engines.find((e) => e.name === "clone");
   $("#cloneStatus").textContent = clone.available ? `Voice clone engine: ${clone.info}. Licence: ${clone.licence}.`
-    : "Voice clone engine is not installed yet. Run “setup_windows.bat clone” once (downloads about 3 GB). You can record the sample now.";
+    : "Voice clone engine is not installed yet. Run “install_once.bat clone” once (downloads about 3 GB). You can record the sample now.";
 }
 
 function renderSlides() {
@@ -216,7 +216,7 @@ function renderVoice() {
   eSel.value = engine;
   const eng = engines.find((e) => e.name === engine);
   $("#engineInfo").textContent = eng ? `${eng.label}: ${eng.info} · licence ${eng.licence}` :
-    "No voice engine installed yet — run setup_windows.bat (it downloads the Kokoro voices once).";
+    "No voice engine installed yet — run install_once.bat (it downloads the Kokoro voices once).";
   const voices = eng ? eng.voices : [];
   const langs = [...new Set(voices.map((v) => v.lang))];
   const lSel = $("#lang");
@@ -596,7 +596,7 @@ async function loadLibrary() {
     $("#aiStatus").textContent = ai.llm?.available ? `Local AI ready: ${ai.llm.info}.` : `Not ready: ${ai.llm?.info || "local AI not installed"}`;
     $("#dubStatus").textContent = ai.llm?.available ? "" : `Needs the local AI: ${ai.llm?.info || ""}`;
     $("#sttStatus").textContent = ai.stt?.available ? " Captions for your recordings are made from what you actually say (Whisper)."
-      : " Tip: run setup_windows.bat ai to get exact captions from your own recordings.";
+      : " Tip: run install_once.bat ai to get exact captions from your own recordings.";
     await loadLibrary();
     await loadProjects();
   } catch (err) { toast("Cannot reach the app: " + err.message, true); }

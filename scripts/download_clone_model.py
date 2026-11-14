@@ -1,5 +1,5 @@
 """Downloads the Chatterbox Multilingual voice-clone model once (about 3 GB) into models/hf.
-Run by: setup_windows.bat clone   (inside .venv-clone)."""
+Run by: install_once.bat clone   (inside .venv-clone)."""
 import os
 from pathlib import Path
 

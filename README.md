@@ -32,7 +32,7 @@ computer.
 - **Voice engines** (switchable):
   - **Browser / Windows voices** — preview only; browsers do not expose this audio for export.
   - **Local voice server** — this app's installed Kokoro / Piper / eSpeak / Windows voices. The page only contacts `localhost`.
-  - **My cloned voice** — your own voice, offline and without any API key. After `setup_windows.bat clone`, record a 10–30 s voice sample once in the Presentation app (Step 3 › Voice clone); it then appears in the Studio's Voice list as *My cloned voice — English / Hindi / …*. It is slow without an NVIDIA graphics card.
+  - **My cloned voice** — your own voice, offline and without any API key. After `install_once.bat clone`, record a 10–30 s voice sample once in the Presentation app (Step 3 › Voice clone); it then appears in the Studio's Voice list as *My cloned voice — English / Hindi / …*. It is slow without an NVIDIA graphics card.
 - **Voice controls:** local voice list and speed; browser preview voices also expose pitch.
   - You can preview and regenerate one scene at a time, or give a scene its own voice.
   - A **voice library** saves named presets.
@@ -92,15 +92,15 @@ You only do steps 1–3 once.
 1. **Install Python** (free) from <https://www.python.org/downloads/>. Choose version 3.11, 3.12 or 3.13.
    During installation, **tick "Add python.exe to PATH"**.
 2. **Download this app.** On the GitHub page, click the green **Code** button, then **Download ZIP**. Unzip it to a simple folder, for example `C:\DTC-Studio`.
-3. **Double-click `setup_windows.bat`.** It needs the internet **once** (about 10 minutes, roughly 500 MB) and downloads the Kokoro voices.
-   Optional extras: open a Command Prompt in that folder and type one of these. You can combine them, e.g. `setup_windows.bat clone gpu`.
+3. **Double-click `install_once.bat`.** It needs the internet **once** (about 10 minutes, roughly 500 MB) and downloads the Kokoro voices.
+   Optional extras: open a Command Prompt in that folder and type one of these. You can combine them, e.g. `install_once.bat clone gpu`.
 
    | Command | What it adds |
    |---|---|
-   | `setup_windows.bat clone` | **Voice clone**, so the app can speak in *your* voice. About 3 GB extra. |
-   | `setup_windows.bat gpu` | Uses your graphics card for the voices (NVIDIA, AMD or Intel). |
-   | `setup_windows.bat small` | Smaller, faster voice model for older laptops. |
-   | `setup_windows.bat piper` | Extra languages through Piper voices. |
+   | `install_once.bat clone` | **Voice clone**, so the app can speak in *your* voice. About 3 GB extra. |
+   | `install_once.bat gpu` | Uses your graphics card for the voices (NVIDIA, AMD or Intel). |
+   | `install_once.bat small` | Smaller, faster voice model for older laptops. |
+   | `install_once.bat piper` | Extra languages through Piper voices. |
 4. **Double-click `start_windows.bat`.** A black window opens; keep it open while you use the app. Your browser opens at `http://localhost:8000`.
 5. **On your phone:** connect to the same Wi-Fi, click **📱 Phone** in the app and scan the QR code. If Windows Firewall asks about Python, allow it on **Private networks**.
 
@@ -124,12 +124,12 @@ Your work is saved automatically in `projects\<project-name>\`.
 
 | Feature | Where | Install once |
 |---|---|---|
-| **AI narration from your PPT:** reads every slide (title, points, PPT speaker notes) and writes a corporate voice-over, in 28 languages | Presentation app › Step 3 › 🤖 AI narration | `setup_windows.bat ai` |
-| **Dubbing:** translated copy of a project, voiced in your cloned voice | Presentation app › Step 5 › 🌐 Other languages | `setup_windows.bat ai` (+ `clone` for your voice) |
-| **Captions from your recordings** (Whisper) and **noise cleanup** | automatic when you render a slide with your recording | captions: `setup_windows.bat ai`; noise cleanup: nothing |
+| **AI narration from your PPT:** reads every slide (title, points, PPT speaker notes) and writes a corporate voice-over, in 28 languages | Presentation app › Step 3 › 🤖 AI narration | `install_once.bat ai` |
+| **Dubbing:** translated copy of a project, voiced in your cloned voice | Presentation app › Step 5 › 🌐 Other languages | `install_once.bat ai` (+ `clone` for your voice) |
+| **Captions from your recordings** (Whisper) and **noise cleanup** | automatic when you render a slide with your recording | captions: `install_once.bat ai`; noise cleanup: nothing |
 | **Music library** (5 moods, composed by the app, free for monetised YouTube) + slide-change whoosh | Presentation › Step 5, and Studio › Music | nothing |
-| **Write scenes from an idea**, including **long cinematic videos** (1, 3, 5 or 8 minutes) | Studio › Script › 🤖 Write scenes from an idea | `setup_windows.bat ai` |
-| **Picture creator** from a prompt, one picture per scene | Studio › Scenes › 🖼 | `setup_windows.bat images` |
+| **Write scenes from an idea**, including **long cinematic videos** (1, 3, 5 or 8 minutes) | Studio › Script › 🤖 Write scenes from an idea | `install_once.bat ai` |
+| **Picture creator** from a prompt, one picture per scene | Studio › Scenes › 🖼 | `install_once.bat images` |
 
 - **Your voice, or someone else's:** cloning another person's voice needs their **written permission**. The app asks you to confirm this.
 - **Speed on a normal laptop:**
@@ -237,9 +237,9 @@ I chose tools whose **licence allows commercial use**, such as a monetised YouTu
 
 | Engine | Quality | Languages | Setup |
 |---|---|---|---|
-| **Kokoro** (default) | ★★★★★ natural | English US/UK, Hindi, Spanish, French, Italian, Portuguese; male + female | `setup_windows.bat` |
-| **My cloned voice** | ★★★★ your own voice | 23: English, Hindi, Arabic, German, French, Spanish, Chinese, Japanese, Russian… | `setup_windows.bat clone`, then record a sample in the app |
-| **Piper** | ★★★★ | 40+ | `setup_windows.bat piper` |
+| **Kokoro** (default) | ★★★★★ natural | English US/UK, Hindi, Spanish, French, Italian, Portuguese; male + female | `install_once.bat` |
+| **My cloned voice** | ★★★★ your own voice | 23: English, Hindi, Arabic, German, French, Spanish, Chinese, Japanese, Russian… | `install_once.bat clone`, then record a sample in the app |
+| **Piper** | ★★★★ | 40+ | `install_once.bat piper` |
 | **Windows voices** | ★★★ | whatever Windows has | automatic (fallback) |
 | **eSpeak NG** | ★★ robotic | 100+ | optional install |
 

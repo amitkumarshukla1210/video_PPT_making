@@ -2,7 +2,7 @@
 REM Double-click to start. Keep this window open while you use the app.
 cd /d "%~dp0"
 if not exist .venv\Scripts\python.exe (
-  echo Please run setup_windows.bat first.
+  echo Please run install_once.bat first.
   pause
   exit /b 1
 )

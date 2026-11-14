@@ -1,14 +1,14 @@
 @echo off
 REM ============================================================
 REM  One-time setup (needs internet once). Double-click this file.
-REM  Options:  setup_windows.bat small   -> smaller/faster voice model
-REM            setup_windows.bat gpu     -> use your graphics card for the voice (DirectML)
-REM            setup_windows.bat piper   -> extra languages (Piper voices)
-REM            setup_windows.bat clone   -> voice clone: speak in YOUR voice (about 3 GB)
-REM            setup_windows.bat ai      -> local AI writer/translator (Ollama + Llama 3.2, about 2 GB)
+REM  Options:  install_once.bat small   -> smaller/faster voice model
+REM            install_once.bat gpu     -> use your graphics card for the voice (DirectML)
+REM            install_once.bat piper   -> extra languages (Piper voices)
+REM            install_once.bat clone   -> voice clone: speak in YOUR voice (about 3 GB)
+REM            install_once.bat ai      -> local AI writer/translator (Ollama + Llama 3.2, about 2 GB)
 REM                                         and captions from your recordings (Whisper, about 0.5 GB)
-REM            setup_windows.bat images  -> picture creator from a prompt (about 3 GB)
-REM  Options can be combined, e.g.  setup_windows.bat clone ai images
+REM            install_once.bat images  -> picture creator from a prompt (about 3 GB)
+REM  Options can be combined, e.g.  install_once.bat clone ai images
 REM ============================================================
 cd /d "%~dp0"
 setlocal EnableDelayedExpansion
@@ -91,7 +91,7 @@ if defined WANTAI (
     winget install --id Ollama.Ollama -e --accept-package-agreements --accept-source-agreements
     if errorlevel 1 (
       echo  Could not install Ollama automatically. Download it from https://ollama.com/download
-      echo  install it, then run:  setup_windows.bat ai   again.
+      echo  install it, then run:  install_once.bat ai   again.
       goto fail
     )
     set "PATH=%LOCALAPPDATA%\Programs\Ollama;!PATH!"

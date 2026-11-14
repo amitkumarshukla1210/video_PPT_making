@@ -17,7 +17,7 @@ def ffmpeg_bin():
         import imageio_ffmpeg            # bundled ffmpeg.exe, installed by requirements.txt
         return imageio_ffmpeg.get_ffmpeg_exe()
     except Exception as e:
-        raise RuntimeError("FFmpeg not found. Run setup_windows.bat again.") from e
+        raise RuntimeError("FFmpeg not found. Run install_once.bat again.") from e
 
 
 ENCODERS = {
