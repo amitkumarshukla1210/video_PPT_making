@@ -1,9 +1,9 @@
 // Any OpenAI-compatible speech server: POST {base}/v1/audio/speech → audio.
-// The Design to Cost app (start_windows.bat) provides one at http://localhost:8000 with Kokoro/Piper/eSpeak.
+// The Design to Cost app (start_windows.bat) provides one at http://localhost:8080 with Kokoro/Piper/eSpeak.
 import { VoiceError, errorFromResponse, networkError } from "./errors.js";
 
 const SERVICE = "Local voice server";
-export const DEFAULT_URL = "http://localhost:8000";
+export const DEFAULT_URL = "http://localhost:8080";
 
 export const local = {
   id: "local",

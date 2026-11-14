@@ -76,7 +76,7 @@ class Studio:
         self.ctx.add_init_script(init)
         self.voice_seconds = voice_seconds
         self.silent_voice = silent_voice
-        self.ctx.route("http://localhost:8000/**", self._tts)
+        self.ctx.route("http://localhost:8080/**", self._tts)
         self.ctx.route(CDN_CORE, self._core)
         self.page.goto(f"{base_url}/studio/")
         self.page.wait_for_selector("body[data-ready=true]")
@@ -104,7 +104,7 @@ class Studio:
         import base64
         from PIL import Image
         url = route.request.url
-        self.ai_calls.append((url.split("8000")[1], json.loads(route.request.post_data or "{}") if route.request.method == "POST" else None))
+        self.ai_calls.append((url.split("8080")[1], json.loads(route.request.post_data or "{}") if route.request.method == "POST" else None))
         if url.endswith("/v1/ai/status"):
             data = {"llm": {"available": True, "info": "fake"}, "images": {"available": True, "info": "fake"}}
         elif url.endswith("/v1/ai/scenes") and json.loads(route.request.post_data or "{}").get("background"):

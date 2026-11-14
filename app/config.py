@@ -14,7 +14,7 @@ os.environ.setdefault("HF_HOME", str(MODELS_DIR / "hf"))
 os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
 
 HOST = os.environ.get("DTC_HOST", "0.0.0.0")  # 0.0.0.0 = reachable from phone on same Wi-Fi
-PORT = int(os.environ.get("DTC_PORT", "8000"))
+PORT = int(os.environ.get("DTC_PORT", "8080"))
 
 # Brand
 NAVY = "#152238"
