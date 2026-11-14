@@ -78,6 +78,28 @@ def test_llm_status_model_missing(monkeypatch):
     assert "ollama pull" in llm.status()["info"]
 
 
+def test_llm_uses_a_model_already_in_ollama(monkeypatch):
+    monkeypatch.setattr(llm, "_active", None)
+    monkeypatch.setattr(llm, "FORCED", False)
+    seen = {}
+
+    def fake(path, payload=None, timeout=5):
+        if path == "/api/tags":
+            return {"models": [{"name": "nomic-embed-text:latest"}, {"name": "qwen3:8b"}, {"name": "qwen3.5:4b"}]}
+        seen.update(payload)
+        return {"response": "<think>hmm</think>\nHello."}
+    monkeypatch.setattr(llm, "_request", fake)
+    st = llm.status()
+    assert st["available"] and st["model"] == "qwen3.5:4b"
+    assert llm.generate("hi") == "Hello."
+    assert seen["model"] == "qwen3.5:4b" and seen["think"] is False
+
+
+def test_llm_forced_model_is_not_replaced(monkeypatch):
+    monkeypatch.setattr(llm, "FORCED", True)
+    assert llm.pick_model(["qwen3:8b"]) is None
+
+
 def test_ai_writes_narration_for_every_slide_from_content(fake_llm, proj):
     n = writer.write_narration(proj, "en")
     assert n == 4

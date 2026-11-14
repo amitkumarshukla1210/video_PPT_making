@@ -493,9 +493,11 @@ def test_mp4_export_via_ffmpeg_wasm_is_lazy(studio, tmp_path):
     assert d.suggested_filename.endswith(".mp4")
     out = tmp_path / "out.mp4"
     d.save_as(out)
-    secs, info = media_seconds(out)
-    assert "Video: h264" in info and "Audio: aac" in info
-    assert 2.5 < secs < 4.0
+    secs, info = media_seconds(out, "0:v:0")     # the video track (newer FFmpeg reports the shortest track overall)
+    assert "Video: h264" in info
+    assert 2.5 < secs < 4.0, secs
+    _, info = media_seconds(out)
+    assert "Audio: aac" in info
     assert set(studio.cdn_requests) == {"ffmpeg-core.js", "ffmpeg-core.wasm"}
     assert "converted to MP4 with ffmpeg.wasm" in p.text_content("#results")
 
