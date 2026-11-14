@@ -38,7 +38,7 @@ set "ZIPFILE=updates\latest.zip"
 :install
 echo [3/4] Installing !ZIPFILE! ...
 powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $t = Join-Path $env:TEMP 'dtc-update'; if (Test-Path $t) { Remove-Item $t -Recurse -Force }; Expand-Archive -LiteralPath '!ZIPFILE!' -DestinationPath $t -Force; $src = Get-ChildItem $t -Directory | Select-Object -First 1; if (-not (Test-Path (Join-Path $src.FullName 'app\main.py'))) { throw 'This ZIP is not the Design to Cost app.' }; Copy-Item -Path (Join-Path $src.FullName '*') -Destination '.' -Recurse -Force; Remove-Item $t -Recurse -Force; if (Test-Path 'install_once.bat') { Remove-Item 'setup_windows.bat' -Force -ErrorAction SilentlyContinue }"
-if errorlevel 1 goto fail
+if errorlevel 1 goto badzip
 if not exist updates\installed mkdir updates\installed
 move /y "!ZIPFILE!" updates\installed\ >nul
 
@@ -69,6 +69,13 @@ echo    3. Put the ZIP file into:  %CD%\updates
 echo    4. Run update_windows.bat again.
 pause
 exit /b 1
+
+:badzip
+echo.
+echo  The file !ZIPFILE! is broken or incomplete (often an interrupted download).
+echo  It has been deleted. Run update_windows.bat again to download a fresh copy.
+del /q "!ZIPFILE!" >nul 2>nul
+goto fail
 
 :fail
 echo.
