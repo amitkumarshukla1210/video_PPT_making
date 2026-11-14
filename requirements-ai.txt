@@ -1,0 +1,4 @@
+# Local AI extras for the main environment (installed by: setup_windows.bat ai)
+# faster-whisper (MIT): captions from your own recordings, on the CPU.
+faster-whisper>=1.1
+# The writer/translator uses Ollama (MIT), a separate Windows program: https://ollama.com/download

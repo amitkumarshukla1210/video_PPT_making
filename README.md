@@ -120,6 +120,31 @@ Your work is saved automatically in `projects\<project-name>\`.
 
 ---
 
+## Local AI (v1.4.0): free, offline, no API key
+
+| Feature | Where | Install once |
+|---|---|---|
+| **AI narration from your PPT:** reads every slide (title, points, PPT speaker notes) and writes a corporate voice-over, in 28 languages | Presentation app › Step 3 › 🤖 AI narration | `setup_windows.bat ai` |
+| **Dubbing:** translated copy of a project, voiced in your cloned voice | Presentation app › Step 5 › 🌐 Other languages | `setup_windows.bat ai` (+ `clone` for your voice) |
+| **Captions from your recordings** (Whisper) and **noise cleanup** | automatic when you render a slide with your recording | captions: `setup_windows.bat ai`; noise cleanup: nothing |
+| **Music library** (5 moods, composed by the app, free for monetised YouTube) + slide-change whoosh | Presentation › Step 5, and Studio › Music | nothing |
+| **Write scenes from an idea**, including **long cinematic videos** (1, 3, 5 or 8 minutes) | Studio › Script › 🤖 Write scenes from an idea | `setup_windows.bat ai` |
+| **Picture creator** from a prompt, one picture per scene | Studio › Scenes › 🖼 | `setup_windows.bat images` |
+
+- **Your voice, or someone else's:** cloning another person's voice needs their **written permission**. The app asks you to confirm this.
+- **Speed on a normal laptop:**
+  - AI narration for 20 slides: about 2–5 minutes.
+  - One picture: about 20–60 seconds; faster with Intel graphics.
+  - A long cinematic video, 55 scenes: about 5–10 minutes of writing, then the pictures.
+- **Licences, all commercial use allowed:**
+  - Ollama: MIT. Llama 3.2: community licence.
+  - faster-whisper: MIT. Whisper weights: MIT.
+  - OpenVINO: Apache-2.0. LCM DreamShaper v7: CreativeML OpenRAIL-M.
+  - App-made music: yours.
+- **Ollama must be running:** it starts with Windows after installation (tray icon). For a stronger laptop you can switch to a better model: set `DTC_LLM_MODEL=qwen2.5:7b` (Apache-2.0), then run `ollama pull qwen2.5:7b`.
+
+---
+
 ## Versions, updates and backups
 
 **Your version** is shown in the app header (e.g. *v1.2.0*), in the studio footer and in the black

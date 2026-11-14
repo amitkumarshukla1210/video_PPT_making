@@ -6,6 +6,22 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.4.0 — 2026-11-13
+Local AI, all on your laptop, with no API key:
+- **PPT → corporate video:** the AI writes the narration from every slide (title, points, PPT
+  speaker notes), in 28 languages. It uses Ollama with Llama 3.2 3B (commercial use allowed).
+- **Dubbing:** one click makes a translated copy of a project, voiced in your cloned voice (or a
+  stock voice of that language). You check it, then render.
+- **Your recordings:** background-noise cleanup, and exact captions from what you actually said (Whisper).
+- **Music library:** music beds composed by the app in 5 moods, free of copyright, plus sound
+  effects and an optional "whoosh" at each slide change.
+- **Studio, write scenes from an idea:** from a short clip up to **long cinematic videos (about 8 minutes,
+  55 scenes)**. The AI plans the story first, then writes it in parts.
+- **Studio, picture creator:** a picture for every scene from a prompt, using Stable Diffusion LCM on
+  OpenVINO with your Intel graphics.
+- New install options: `setup_windows.bat ai` and `setup_windows.bat images`.
+- Fix: scene thumbnails refresh when a picture changes.
+
 ## 1.3.0 — 2026-11-04
 - Refresh both workspaces with a branded home prompt, sidebar navigation, and task-specific entry points while preserving the Design to Cost logo and product name.
 - Add an original ready-to-try sample picture and narrated-video workflow in the main app and Video & Voice Studio.
