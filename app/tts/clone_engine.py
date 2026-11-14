@@ -1,5 +1,5 @@
 """Your own voice, cloned from a 10–30 second recording (Chatterbox Multilingual, MIT licence).
-Runs in a separate Python environment (.venv-clone) — install with: setup_windows.bat clone"""
+Runs in a separate Python environment (.venv-clone) — install with: install_once.bat clone"""
 import json
 import shutil
 import subprocess
@@ -39,7 +39,7 @@ def _python():
 def available():
     py = _python()
     return (True, "ready" + (" (GPU)" if has_gpu() else " (CPU — slow, see estimate)")) if py else \
-        (False, "not installed — run: setup_windows.bat clone")
+        (False, "not installed — run: install_once.bat clone")
 
 
 def has_gpu():

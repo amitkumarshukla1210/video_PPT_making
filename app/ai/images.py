@@ -1,6 +1,6 @@
 """Picture creator: Stable Diffusion (LCM, 4 steps) on OpenVINO, using the Intel/AMD/NVIDIA GPU when
 OpenVINO can, otherwise the CPU. Runs in its own environment (.venv-image), installed with
-setup_windows.bat images. Model: rupeshs/LCM-dreamshaper-v7-openvino (CreativeML OpenRAIL-M:
+install_once.bat images. Model: rupeshs/LCM-dreamshaper-v7-openvino (CreativeML OpenRAIL-M:
 commercial use allowed, with the licence's use restrictions)."""
 import json
 import os
@@ -29,9 +29,9 @@ def _model_cached():
 
 def status():
     if not _python():
-        return {"available": False, "info": "Picture creator: run setup_windows.bat images (about 3 GB, one time)"}
+        return {"available": False, "info": "Picture creator: run install_once.bat images (about 3 GB, one time)"}
     if not _model_cached():
-        return {"available": False, "info": "Picture model not downloaded yet: run setup_windows.bat images"}
+        return {"available": False, "info": "Picture model not downloaded yet: run install_once.bat images"}
     return {"available": True, "info": f"{MODEL.split('/')[-1]} on OpenVINO"}
 
 

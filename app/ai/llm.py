@@ -30,7 +30,7 @@ def status():
         tags = _request("/api/tags", timeout=2)
     except (urllib.error.URLError, OSError, ValueError):
         return {"available": False, "model": MODEL,
-                "info": "Ollama is not running. Install it once (setup_windows.bat ai) and keep it running."}
+                "info": "Ollama is not running. Install it once (install_once.bat ai) and keep it running."}
     names = [m.get("name", "") for m in tags.get("models", [])]
     if MODEL not in names and f"{MODEL}:latest" not in names:
         return {"available": False, "model": MODEL, "models": names,

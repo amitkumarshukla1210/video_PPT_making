@@ -281,4 +281,4 @@ def test_picture_creator_explains_when_not_installed(monkeypatch):
     from app.ai import images
     monkeypatch.setattr(images, "_python", lambda: None)
     r = app.test_client().post("/v1/images/generations", json={"prompt": "x"})
-    assert r.status_code == 503 and "setup_windows.bat images" in r.get_json()["error"]["message"]
+    assert r.status_code == 503 and "install_once.bat images" in r.get_json()["error"]["message"]

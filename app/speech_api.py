@@ -143,7 +143,7 @@ def speech():
         fmt = "wav"
     engine, vid, lang = _resolve(body.get("voice"))
     if not engine:
-        return _error(503, "No offline voice engine is installed. Run setup_windows.bat.", "server_error")
+        return _error(503, "No offline voice engine is installed. Run install_once.bat.", "server_error")
     with tempfile.TemporaryDirectory() as td:
         wav = Path(td) / "speech.wav"
         try:

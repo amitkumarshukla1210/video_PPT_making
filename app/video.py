@@ -44,7 +44,7 @@ def _voice(proj, needed=True):
     if not v.get("engine") or v["engine"] not in tts.ENGINES or not tts.ENGINES[v["engine"]].available()[0]:
         v["engine"] = tts.default_engine()
     if not v["engine"] and needed:
-        raise RuntimeError("No voice engine installed. Run setup_windows.bat (downloads Kokoro voices).")
+        raise RuntimeError("No voice engine installed. Run install_once.bat (downloads Kokoro voices).")
     return v
 
 

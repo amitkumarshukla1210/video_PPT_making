@@ -1,5 +1,5 @@
 """Captions from your own recordings with faster-whisper (MIT; Whisper weights MIT). Runs on the CPU.
-Install once with: setup_windows.bat ai  (downloads the 'small' model, about 460 MB, into models\\hf)."""
+Install once with: install_once.bat ai  (downloads the 'small' model, about 460 MB, into models\\hf)."""
 import os
 
 SIZE = os.environ.get("DTC_WHISPER_MODEL", "small")
@@ -14,11 +14,11 @@ def _model_path():
 def status():
     import importlib.util
     if importlib.util.find_spec("faster_whisper") is None:
-        return {"available": False, "info": "Captions from recordings: run setup_windows.bat ai"}
+        return {"available": False, "info": "Captions from recordings: run install_once.bat ai"}
     try:
         _model_path()
     except Exception:
-        return {"available": False, "info": f"Whisper model '{SIZE}' not downloaded: run setup_windows.bat ai"}
+        return {"available": False, "info": f"Whisper model '{SIZE}' not downloaded: run install_once.bat ai"}
     return {"available": True, "info": f"Whisper {SIZE} (CPU)"}
 
 

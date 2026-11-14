@@ -488,7 +488,7 @@ def run():
     print("  ------------------------------------------------")
     print(f"  On this laptop : http://localhost:{PORT}")
     print(f"  On your phone  : {url}   (same Wi-Fi)")
-    print(f"  Voice engine   : {tts.default_engine() or 'NONE — run setup_windows.bat'}")
+    print(f"  Voice engine   : {tts.default_engine() or 'NONE — run install_once.bat'}")
     print(f"  Video encoder  : {ENCODERS[best_encoder()][0]}")
     print("  Close this window to stop the app.\n")
     sys.stdout.flush()
