@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inspirations — Design to Cost</title>
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="stylesheet" href="/static/dtc-theme.css">
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/make.css">
+</head>
+<body>
+{% include '_sidebar.html' %}
+<header>
+  <div class="header-inner">
+    <a class="brand" href="/">
+      <img src="/static/logo.png" alt="Design to Cost logo">
+      <span class="brand-text"><span class="name">Design to Cost</span><span class="tagline">Inspirations · v{{ version }}</span></span>
+    </a>
+    <div class="top-actions"><a class="btn btn-outline" href="/make">✦ Start from scratch</a><a class="btn btn-outline" href="/projects">▦ My projects</a></div>
+  </div>
+</header>
+<main class="container inspirations">
+  <div class="proj-head">
+    <div class="kicker">Inspirations</div>
+    <h1>32 example videos — pick one, make it yours</h1>
+    <p class="muted">Each example is a complete video: scenes, on-screen text, narration, look, music and format.
+      Use it as it is and change the words, or type your topic and the local AI rewrites it for you. Everything runs on this laptop.</p>
+  </div>
+  <div class="chips" id="chips" role="tablist" aria-label="Categories"></div>
+  <div class="ex-grid" id="grid"></div>
+</main>
+
+<div id="useBox" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="useTitle">
+  <div class="modal-box">
+    <div class="ex-cat" id="useCat"></div>
+    <h3 id="useTitle"></h3>
+    <p class="muted" id="useBlurb"></p>
+    <img id="useThumb" alt="" class="use-thumb">
+    <label for="useName">Project name</label>
+    <input id="useName">
+    <label for="useTopic">Your topic (optional)</label>
+    <textarea id="useTopic" rows="3" placeholder="e.g. Our new X200 pump: 35% lighter, ₹ 19,900, for small dairies"></textarea>
+    <p class="muted" id="useNote"></p>
+    <label for="useLang">Language</label>
+    <select id="useLang"><option value="en">English</option><option value="hi">Hindi</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option><option value="ar">Arabic</option><option value="pt">Portuguese</option></select>
+    <div class="row wrap nav-row">
+      <button class="btn btn-outline" id="useCancel">Cancel</button>
+      <button class="btn btn-primary" id="useGo">Use this example →</button>
+    </div>
+    <div class="progress hidden" id="useProg"><div class="bar"><div></div></div><p class="muted"></p></div>
+  </div>
+</div>
+<footer><div class="footnote">© Design to Cost · Inspirations · version {{ version }} · runs offline on this laptop</div></footer>
+<div id="toast" class="toast hidden"></div>
+<script src="/static/inspirations.js"></script>
+</body>
+</html>

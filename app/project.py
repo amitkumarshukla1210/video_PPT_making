@@ -40,6 +40,7 @@ def new_project(name):
         "clean_audio": True,
         "sfx": False,
         "motion": "classic",        # "motion" = animated scenes (charts, counters, kinetic text)
+        "look": "corporate",        # motion-graphics palette: corporate, cinematic, bold, warm
         "pip": {"enabled": False, "photo": None, "position": "br", "shape": "circle", "size": "m"},
         "created": time.strftime("%Y-%m-%d %H:%M"),
         "slides": [
@@ -64,6 +65,7 @@ def load(pid):
     data.setdefault("clean_audio", True)
     data.setdefault("sfx", False)
     data.setdefault("motion", "classic")
+    data.setdefault("look", "corporate")
     data.setdefault("pip", {"enabled": False, "photo": None, "position": "br", "shape": "circle", "size": "m"})
     return data
 

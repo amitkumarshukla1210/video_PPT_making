@@ -172,7 +172,7 @@ def test_reel_and_corporate_videos_are_kept_in_my_projects(client, monkeypatch):
 
     lib = {p["id"]: p for p in client.get("/api/my_projects").get_json()}[pid]
     labels = [f["label"] for f in lib["files"] if f["kind"] == "mp4"]
-    assert "Corporate video" in labels and "Instagram Reel / YouTube Shorts" in labels
+    assert "Corporate video" in labels and "Reel: Instagram · Facebook · YouTube Shorts" in labels
     assert lib["files"][0]["name"].startswith("corporate_")              # newest first
     assert client.get(lib["files"][0]["url"]).status_code == 200
     assert lib["slides"] == 1 and lib["modified"]
@@ -197,6 +197,6 @@ def test_pages_load(client):
 
 
 def test_file_labels():
-    assert maker._file_label("reel_2026-11-14_101010.mp4") == "Instagram Reel / YouTube Shorts"
+    assert maker._file_label("reel_2026-11-14_101010.mp4") == "Reel: Instagram · Facebook · YouTube Shorts"
     assert maker._file_label("video.mp4") == "Video (latest render)"
     assert maker._file_label("reels_slides_2-3.mp4") == "Short clip 9:16"

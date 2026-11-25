@@ -13,7 +13,7 @@ from .config import HOST, PORT, MAX_VIDEO_SECONDS, APP_NAME, MODULE_NAME, ROOT
 from .speech_api import bp as speech_bp
 from .version import app_version
 from .ai import llm, writer as ai_writer, dubbing, library
-from . import maker, sources
+from . import maker, sources, inspirations, motion
 from .ffmpeg_utils import best_encoder, ENCODERS
 from .ppt_builder import build_pptx
 from .ppt_import import import_pptx
@@ -84,6 +84,51 @@ def projects_page():
     return render_template("projects.html", version=app_version(), page="projects")
 
 
+@app.get("/inspirations")
+def inspirations_page():
+    """32 example videos in 8 categories, to start from."""
+    return render_template("inspirations.html", version=app_version(), page="inspirations")
+
+
+@app.get("/api/inspirations")
+def inspirations_list():
+    return jsonify(inspirations.catalogue() | {"looks": {k: v["label"] for k, v in motion.LOOKS.items()},
+                                               "ai": llm.status()["available"]})
+
+
+@app.get("/inspirations/thumb/<eid>.jpg")
+def inspiration_thumb(eid):
+    if eid not in inspirations.BY_ID:
+        abort(404)
+    return Response(inspirations.thumbnail(eid), mimetype="image/jpeg",
+                    headers={"Cache-Control": "max-age=86400"})
+
+
+@app.post("/api/inspirations/<eid>/use")
+def inspiration_use(eid):
+    """A new project from an example. With a topic and the local AI, the AI adapts it (background job)."""
+    if eid not in inspirations.BY_ID:
+        abort(404, "Unknown example")
+    b = request.json or {}
+    topic = str(b.get("topic") or "").strip()[:500]
+    proj = inspirations.create(eid, str(b.get("name") or "").strip()[:80] or None)
+    pid = proj["id"]
+    if not topic:
+        return jsonify(project=pid, job=False)
+    if not llm.status()["available"]:
+        return jsonify(project=pid, job=False, note="The local AI is not running, so the example was kept as it is. "
+                                                    "Change the texts in step 2.")
+    language = str(b.get("language") or "en")[:5]
+
+    def work(progress, cancelled):
+        p = inspirations.adapt(_proj(pid), eid, topic, language, lambda f, m: progress("Adapting the example", f, m))
+        P.save(p)
+        return {"slides": sum(s["kind"] == "content" for s in p["slides"])}
+
+    jobs.start(f"{pid}:ai", work)
+    return jsonify(project=pid, job=True)
+
+
 @app.get("/api/my_projects")
 def my_projects():
     return jsonify(maker.library_list())
@@ -152,6 +197,8 @@ def make_video(pid):
         abort(400, "No narration yet — go back to step 2 and write the script.")
     if estimate(proj)["video_seconds"] > MAX_VIDEO_SECONDS * 1.1:
         abort(400, f"The video would be longer than {MAX_VIDEO_SECONDS // 60} minutes. Shorten the script first.")
+    if b.get("look") in motion.LOOKS:
+        proj["look"] = b["look"]
     proj = maker.prepare_video(proj, vtype, str(b.get("music") or "auto"), bool(b.get("captions", True)),
                                b.get("motion"))
 
@@ -309,6 +356,8 @@ def update(pid):
         proj["intro"] = bool(body["intro"])
     if body.get("motion") in ("motion", "classic"):
         proj["motion"] = body["motion"]
+    if body.get("look") in motion.LOOKS:
+        proj["look"] = body["look"]
     for flag in ("clean_audio", "sfx"):
         if flag in body:
             proj[flag] = bool(body[flag])

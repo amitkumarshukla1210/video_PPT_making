@@ -106,6 +106,19 @@ You only do steps 1–3 once.
 
 After setup you can switch off the internet. Everything works offline.
 
+## Inspirations (v1.7.0): 32 example videos
+
+Open **❖ Inspirations** in the left menu (or http://localhost:8000/inspirations). There are **8 categories**:
+Trending Templates, Short Film, Music Video, UGC Ads, Product Ads, Film Trailer, Social Content and Explainer.
+Each example shows its category label, its format (16:9, 9:16 or 1:1), its look and its music.
+
+To use one:
+1. Click **Use this example**.
+2. Optionally type your topic. The local AI then rewrites the example for it.
+3. It opens in Make a video, ready to check and make.
+
+The examples are for any kind of video: film studios, YouTube, Instagram and Facebook Reels, ads and business.
+
 ## Make a video (v1.5.0): the easiest way
 
 Open **✦ Make a video** in the left menu (or http://localhost:8000/make). Four steps:

@@ -33,7 +33,7 @@ function show(step) {
   window.scrollTo({ top: 0, behavior: "smooth" });
   if (step === 2) renderScenes();
   if (step === 3) renderVoice();
-  if (step === 4) refreshEstimate();
+  if (step === 4) { refreshEstimate(); fillLooks(); }
 }
 
 // Polls a background job; key "" = render/make video, "ai" = source / script / pictures.
@@ -183,6 +183,11 @@ async function saveVoice() {
 }
 
 // ---------- 4 · video ----------
+async function fillLooks() {
+  const c = await api("/api/inspirations");
+  $("#look").innerHTML = Object.entries(c.looks).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  $("#look").value = proj.look || "corporate";
+}
 async function refreshEstimate() {
   try {
     const e = await api(`/api/projects/${proj.id}/estimate`);
@@ -197,7 +202,7 @@ async function makeVideo() {
     const type = $("input[name=vtype]:checked").value;
     await api(`/api/projects/${proj.id}/make_video`, { method: "POST",
       json: { type, captions: $("#captions").checked, music: $("#music").value,
-        motion: $("input[name=motion]:checked").value } });
+        motion: $("input[name=motion]:checked").value, look: $("#look").value } });
     const r = await waitJob("", $("#prog4"));
     const vertical = type === "reel";
     $("#result").innerHTML = `<h3>✅ Your video is ready — ${esc(r.label)} · ${mmss(r.seconds)}</h3>
@@ -263,6 +268,7 @@ async function init() {
   };
   $("#go3").onclick = async () => { await saveVoice(); show(4); };
   $("#go4").onclick = makeVideo;
+  $("#look").onchange = async () => { proj = await api(`/api/projects/${proj.id}`, { method: "PUT", json: { look: $("#look").value } }); };
   $$("input[name=motion]").forEach((r) => (r.onchange = async () => {      // the time estimate depends on it
     proj = await api(`/api/projects/${proj.id}`, { method: "PUT", json: { motion: r.value } });
     refreshEstimate();

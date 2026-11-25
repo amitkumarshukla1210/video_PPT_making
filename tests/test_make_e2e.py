@@ -60,14 +60,14 @@ def test_wizard_text_to_reel_and_my_projects(page):
         p.wait_for_function("() => document.querySelector('#estimate').textContent.includes('Video length')")
         p.click("#go4")
         p.wait_for_selector("#result:not(.hidden) video", timeout=240_000)
-        assert "Instagram Reel" in p.text_content("#result h3")
+        assert "Reel: Instagram · Facebook" in p.text_content("#result h3")
         assert p.get_attribute("#result video", "class") == "vertical"
 
         # My projects shows it, plays it, and links back to the wizard
         p.click(".sidebar-link[href='/projects']")
         p.wait_for_selector("body[data-ready=true]")
         card = p.locator(f"article.proj[data-id='{pid}']")
-        assert "Instagram Reel / YouTube Shorts" in card.text_content()
+        assert "Reel: Instagram · Facebook · YouTube Shorts" in card.text_content()
         card.locator("[data-play]").first.click()
         p.wait_for_selector(".file-video video.vertical")
         p.fill("#search", "no such project zzz")
@@ -90,3 +90,30 @@ def test_studio_opens_white_even_in_windows_dark_mode(page):
     r, g, b = [int(x) for x in bg[bg.index("(") + 1:bg.index(")")].split(",")[:3]]
     assert min(r, g, b) > 200, bg
     assert p.locator(".side-link[href='/make']").count() == 1 and p.locator(".side-link[href='/projects']").count() == 1
+
+
+def test_inspirations_gallery_to_wizard(page):
+    p = page
+    p.goto(p.base + "/inspirations")
+    p.wait_for_selector("body[data-ready=true]")
+    assert p.locator(".ex").count() == 32
+    p.click(".chip[data-cat=music_video]")
+    assert p.locator(".ex").count() == 4
+    assert all("Music Video" in t for t in p.locator(".ex .ex-cat").all_text_contents())    # category label on each
+    p.click("[data-use=hype-beat]")
+    assert "Music Video · 9:16" in p.text_content("#useCat")
+    p.fill("#useName", "Hype e2e")
+    p.click("#useGo")
+    p.wait_for_selector("#step2:not(.hidden)", timeout=30_000)
+    pid = p.evaluate("() => new URLSearchParams(location.search).get('p')")
+    try:
+        titles = p.eval_on_selector_all(".scene input[data-k=title]", "els => els.map(e => e.value)")
+        assert titles[1:5] == ["Bold", "Loud", "Limited", "Yours"]
+        p.click("#go2")
+        p.wait_for_selector("#step3:not(.hidden)")
+        p.click("#go3")
+        p.wait_for_selector("#step4:not(.hidden)")
+        p.wait_for_function("() => document.querySelector('#look').value === 'bold'")
+        assert p.is_checked("input[name=vtype][value=reel]") and p.is_checked("input[name=motion][value=motion]")
+    finally:
+        P.delete(pid)

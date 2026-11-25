@@ -26,3 +26,5 @@ tests/.cache/
 updates/
 backups/
 .venv-image/
+models/thumbs/
+models/library/

@@ -409,8 +409,8 @@ def render_video(proj, progress=lambda stage, frac, msg: None, cancelled=lambda:
 # ---------- exports from the 16:9 master ----------
 PRESETS = {
     "youtube": ("YouTube 16:9 1080p", 1920, 1080),
-    "reels": ("Instagram Reels / Shorts 9:16", 1080, 1920),
-    "square": ("Square 1:1 (LinkedIn / Instagram feed)", 1080, 1080),
+    "reels": ("Reels 9:16 (Instagram / Facebook / YouTube Shorts)", 1080, 1920),
+    "square": ("Square 1:1 (Instagram / Facebook / LinkedIn feed)", 1080, 1080),
 }
 
 
