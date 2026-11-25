@@ -15,10 +15,10 @@ from .video import render_video, export, Cancelled
 KINDS = ("pptx", "pictures", "document", "url", "text", "idea")
 VIDEO_TYPES = {
     # type: (label, export preset or None for the 16:9 master, logo intro/outro, default music mood)
-    "youtube": ("YouTube video · 16:9", None, False, "documentary"),
-    "reel": ("Instagram Reel / YouTube Shorts · 9:16", "reels", False, "tech"),
+    "youtube": ("YouTube / Facebook video · 16:9", None, False, "documentary"),
+    "reel": ("Reel: Instagram · Facebook · YouTube Shorts · 9:16", "reels", False, "tech"),
     "corporate": ("Corporate video · 16:9 with logo intro and outro", None, True, "corporate"),
-    "square": ("LinkedIn / Instagram feed · 1:1", "square", False, "corporate"),
+    "square": ("Square post: Instagram · Facebook · LinkedIn · 1:1", "square", False, "corporate"),
 }
 
 
@@ -173,7 +173,7 @@ def _file_label(name):
         return LABELS[name]
     kind = name.split("_")[0]
     if kind in VIDEO_TYPES:
-        return VIDEO_TYPES[kind][0].split(" · ")[0]
+        return VIDEO_TYPES[kind][0].rsplit(" · ", 1)[0]
     if name.startswith("reels_slides_"):
         return "Short clip 9:16"
     if name.startswith("youtube_slides_"):

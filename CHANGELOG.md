@@ -6,6 +6,29 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.7.0 — 2026-11-25
+- **New: Inspirations** (`/inspirations`, first item in the left menu): **32 example videos in 8 categories**, each
+  with its category label. The categories are Trending Templates, Short Film, Music Video, UGC Ads, Product Ads,
+  Film Trailer, Social Content and Explainer. They are made for film studios, YouTube, Instagram and Facebook,
+  not only for business.
+  Each example is complete: scenes, on-screen text, narration, picture prompts, format, look and music.
+  **Use this example** opens it in Make a video. Type your topic and the local AI rewrites it for you, keeping its shape.
+- **Looks** for motion graphics:
+  - **Corporate** — Design to Cost colours
+  - **Cinematic** — dark, gold, cinema bars
+  - **Bold social** — black, yellow, pink
+  - **Warm** — cream, terracotta
+
+  Choose one in Make a video step 4.
+- New scenes:
+  - **statement** — one big centred line, word by word, for trailers, music videos and social clips
+  - **film shot** — your picture fills the screen with a slow camera push and the words over it
+- Music videos run without a voice: the words land on the beat and the music is louder.
+- The Design to Cost logo and page numbers appear only in the Corporate look, or when you upload your own logo.
+- Formats now name every platform: YouTube / Facebook video 16:9, Reel (Instagram · Facebook · YouTube Shorts) 9:16,
+  and Square post 1:1 (Instagram · Facebook · LinkedIn).
+- Rupee amounts use Indian grouping (₹9,00,000).
+
 ## 1.6.0 — 2026-11-25
 - **New: Motion graphics.** In Make a video step 4 (and in Presentation › Video), choose
   **Animation: Motion graphics**. Each scene's animation is chosen from its own content:

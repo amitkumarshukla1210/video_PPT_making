@@ -38,6 +38,7 @@
   <!-- 1 · SOURCE -->
   <section class="card step" id="step1">
     <h3>1 · What should the video be about?</h3>
+    <p class="muted">Not sure where to start? <a href="/inspirations"><b>❖ Pick one of 32 example videos</b></a> (trailers, reels, ads, explainers) and make it yours.</p>
     <div class="kinds" role="radiogroup" aria-label="Source">
       <label class="kind"><input type="radio" name="kind" value="pptx" checked><span class="k-icon">▤</span><b>PowerPoint</b><small>.pptx — slides, pictures and speaker notes</small></label>
       <label class="kind"><input type="radio" name="kind" value="pictures"><span class="k-icon">▧</span><b>Pictures</b><small>screenshots or photos, one scene each</small></label>
@@ -69,8 +70,8 @@
         <select id="vtype1">
           <option value="corporate">Corporate video · 16:9</option>
           <option value="youtube">YouTube video · 16:9</option>
-          <option value="reel">Instagram Reel / YouTube Shorts · 9:16</option>
-          <option value="square">LinkedIn / Instagram feed · 1:1</option>
+          <option value="reel">Reel: Instagram · Facebook · YouTube Shorts · 9:16</option>
+          <option value="square">Square post: Instagram · Facebook · LinkedIn · 1:1</option>
         </select></div>
       <div id="scenesBox"><label for="scenes">Number of scenes</label>
         <select id="scenes">
@@ -132,10 +133,10 @@
   <section class="card step hidden" id="step4">
     <h3>4 · What kind of video?</h3>
     <div class="types" role="radiogroup" aria-label="Video type">
-      <label class="type"><input type="radio" name="vtype" value="youtube"><span class="shape s169"></span><b>YouTube video</b><small>16:9 · 1920×1080 · for YouTube and presentations</small></label>
-      <label class="type"><input type="radio" name="vtype" value="reel"><span class="shape s916"></span><b>Instagram Reel / YouTube Shorts</b><small>9:16 · 1080×1920 · vertical, for phones</small></label>
+      <label class="type"><input type="radio" name="vtype" value="youtube"><span class="shape s169"></span><b>YouTube / Facebook video</b><small>16:9 · 1920×1080 · also for presentations and film festivals</small></label>
+      <label class="type"><input type="radio" name="vtype" value="reel"><span class="shape s916"></span><b>Reel: Instagram · Facebook · YouTube Shorts</b><small>9:16 · 1080×1920 · vertical, for phones</small></label>
       <label class="type"><input type="radio" name="vtype" value="corporate" checked><span class="shape s169 corp"></span><b>Corporate video</b><small>16:9 · logo intro and outro, corporate music, captions</small></label>
-      <label class="type"><input type="radio" name="vtype" value="square"><span class="shape s11"></span><b>LinkedIn / feed</b><small>1:1 · 1080×1080 · square</small></label>
+      <label class="type"><input type="radio" name="vtype" value="square"><span class="shape s11"></span><b>Square post</b><small>1:1 · 1080×1080 · Instagram, Facebook and LinkedIn feeds</small></label>
     </div>
     <label>Animation</label>
     <div class="types anim" role="radiogroup" aria-label="Animation">
@@ -143,6 +144,7 @@
       <label class="type"><input type="radio" name="motion" value="classic"><span class="k-icon">▤</span><b>Classic slides</b><small>your branded slides with a soft fade between them</small></label>
     </div>
     <div class="grid-opts">
+      <div><label for="look">Look (motion graphics)</label><select id="look"></select></div>
       <div><label for="music">Background music</label>
         <select id="music"><option value="auto">Automatic for this video type</option><option value="none">No music</option></select></div>
       <div><label>&nbsp;</label><label class="check"><input type="checkbox" id="captions" checked> Captions (subtitles) in the picture</label></div>
