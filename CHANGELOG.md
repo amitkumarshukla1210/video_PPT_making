@@ -6,6 +6,21 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.6.0 — 2026-11-25
+- **New: Motion graphics.** In Make a video step 4 (and in Presentation › Video), choose
+  **Animation: Motion graphics**. Each scene's animation is chosen from its own content:
+  - title and closing: the words rise in one by one, the orange bar draws, the logo pops
+  - one number (e.g. "Steel up 8%"): a big counter that counts up
+  - several numbers (e.g. supplier quotes): a bar chart that grows. For costs and prices, the **lowest**
+    value (the best quote) is in orange.
+  - a picture or screenshot: shown whole on a card, revealed, then a slow camera push-in
+  - points: each one appears **when the voice says it**
+  - every scene ends with a short push-out, and a thin line runs across the top so the picture never freezes
+  - with library music, every cut lands **on the beat**
+- Ideas follow huashu-motion (MIT, github.com/alchaincyf/huashu-motion): pick the motion from the content,
+  anchor reveals to the narration, cut on the beat. The code is our own and runs offline, with no AI agent.
+- Classic slides are still available; existing projects keep their look until you switch.
+
 ## 1.5.2 — 2026-11-14
 - Back to **port 8000** (http://localhost:8000), so Design to Cost and other software on port 8080 can run
   at the same time. Version 1.5.1 used port 8080; update your bookmarks back to :8000.

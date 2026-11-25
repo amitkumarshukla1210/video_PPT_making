@@ -196,7 +196,8 @@ async function makeVideo() {
   try {
     const type = $("input[name=vtype]:checked").value;
     await api(`/api/projects/${proj.id}/make_video`, { method: "POST",
-      json: { type, captions: $("#captions").checked, music: $("#music").value } });
+      json: { type, captions: $("#captions").checked, music: $("#music").value,
+        motion: $("input[name=motion]:checked").value } });
     const r = await waitJob("", $("#prog4"));
     const vertical = type === "reel";
     $("#result").innerHTML = `<h3>✅ Your video is ready — ${esc(r.label)} · ${mmss(r.seconds)}</h3>
@@ -262,6 +263,10 @@ async function init() {
   };
   $("#go3").onclick = async () => { await saveVoice(); show(4); };
   $("#go4").onclick = makeVideo;
+  $$("input[name=motion]").forEach((r) => (r.onchange = async () => {      // the time estimate depends on it
+    proj = await api(`/api/projects/${proj.id}`, { method: "PUT", json: { motion: r.value } });
+    refreshEstimate();
+  }));
   $("#cancel4").onclick = () => api(`/api/projects/${proj.id}/cancel`, { method: "POST" });
   $$("[data-back]").forEach((b) => (b.onclick = () => show(+b.dataset.back)));
   $$("#stepper li").forEach((li) => (li.onclick = () => { if (proj && +li.dataset.step > 1) show(+li.dataset.step); }));
@@ -272,6 +277,7 @@ async function init() {
     try {
       proj = await api(`/api/projects/${q.get("p")}`);
       if (proj.video_type) $(`input[name=vtype][value=${proj.video_type}]`).checked = true;
+      if (proj.video_type && proj.motion) $(`input[name=motion][value=${proj.motion}]`).checked = true;
       show(Math.min(4, Math.max(2, +q.get("step") || 2)));
     } catch (e) { toast("That project was not found", true); }
   }

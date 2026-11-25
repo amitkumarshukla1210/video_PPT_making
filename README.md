@@ -117,6 +117,17 @@ Open **✦ Make a video** in the left menu (or http://localhost:8000/make). Four
 | **3. Voice-over** | Any installed voice, including **your cloned voice**. Click ▶ to hear the first scene. |
 | **4. Video type** | **YouTube** 16:9 · **Instagram Reel / YouTube Shorts** 9:16 · **Corporate video** 16:9 (logo intro and outro, corporate music, captions) · **LinkedIn / feed** 1:1. Choose the music and captions, then **Make the video**. |
 
+**Animation (step 4):** **Motion graphics** (recommended) or **Classic slides**. With motion graphics, each
+scene's animation is picked from its content:
+- a single number counts up
+- several numbers become a growing bar chart (for prices, the lowest is highlighted)
+- pictures get a slow camera push
+- points appear exactly when the voice says them
+- titles animate word by word
+- with library music, every cut lands on the beat
+
+It takes about 3–6× longer to render than classic slides, and the time estimate shows it.
+
 **▦ My projects** (http://localhost:8000/projects) lists every project with its videos, PowerPoint and
 subtitles: play, download, **Continue** (back into these steps) or delete. Each video you make is kept
 with its type and date, so making a Reel does not overwrite your corporate video.

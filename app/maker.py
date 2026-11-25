@@ -126,7 +126,7 @@ def use_library_music(proj, mood):
     proj["music"]["library"] = mood
 
 
-def prepare_video(proj, video_type, music="auto", captions=True):
+def prepare_video(proj, video_type, music="auto", captions=True, motion=None):
     if video_type not in VIDEO_TYPES:
         raise ValueError("Unknown video type")
     _, _, intro, mood = VIDEO_TYPES[video_type]
@@ -137,6 +137,8 @@ def prepare_video(proj, video_type, music="auto", captions=True):
         use_library_music(proj, music)
     elif music == "auto" and not proj["music"].get("file"):
         use_library_music(proj, mood)
+    if motion in ("motion", "classic"):
+        proj["motion"] = motion
     proj["video_type"] = video_type
     proj["captions"] = bool(captions)
     P.save(proj)
