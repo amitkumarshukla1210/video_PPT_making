@@ -152,7 +152,8 @@ def make_video(pid):
         abort(400, "No narration yet — go back to step 2 and write the script.")
     if estimate(proj)["video_seconds"] > MAX_VIDEO_SECONDS * 1.1:
         abort(400, f"The video would be longer than {MAX_VIDEO_SECONDS // 60} minutes. Shorten the script first.")
-    proj = maker.prepare_video(proj, vtype, str(b.get("music") or "auto"), bool(b.get("captions", True)))
+    proj = maker.prepare_video(proj, vtype, str(b.get("music") or "auto"), bool(b.get("captions", True)),
+                               b.get("motion"))
 
     def work(progress, cancelled):
         r = maker.make_video(proj, vtype, bool(b.get("captions", True)), progress, cancelled)
@@ -306,6 +307,8 @@ def update(pid):
         proj["music"]["volume"] = float(body["music"]["volume"])
     if "intro" in body:
         proj["intro"] = bool(body["intro"])
+    if body.get("motion") in ("motion", "classic"):
+        proj["motion"] = body["motion"]
     for flag in ("clean_audio", "sfx"):
         if flag in body:
             proj[flag] = bool(body[flag])

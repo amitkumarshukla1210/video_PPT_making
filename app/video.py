@@ -15,7 +15,7 @@ import wave
 
 from PIL import Image, ImageDraw
 
-from . import tts, media
+from . import tts, media, motion
 from .config import (AUDIO_RATE, FPS, LEAD_IN, TAIL_OUT, FADE, NAVY, WHITE, VIDEO_W, VIDEO_H,
                      MAX_VIDEO_SECONDS, APP_NAME)
 from .ffmpeg_utils import ffmpeg_bin, encoder_args, best_encoder, encode_cost, still_filter, ENCODERS
@@ -27,6 +27,7 @@ MIN_SLIDE = 3.0      # seconds, for slides without narration
 WORDS_PER_SEC = 2.4  # typical corporate narration pace at speed 1.0
 STING = 3.0          # logo intro / outro length, seconds
 CLIP_COST = 3.5      # overlaying a presenter video costs ~3.5x a still slide
+MOTION_COST = 6.0    # drawing animated frames costs ~6x a still slide
 
 
 class Cancelled(Exception):
@@ -71,7 +72,8 @@ def estimate(proj):
                     for s in proj["slides"] if not s.get("clip"))
     clip_len = sum(t for t, s in zip(per_slide, proj["slides"]) if s.get("clip"))
     t_tts = narration * tts.cost_per_second(engine) + (20 if engine == "clone" else 0)   # + model load
-    t_video = ((video_len - clip_len) + clip_len * CLIP_COST) * encode_cost() * 0.7 \
+    still_cost = MOTION_COST if proj.get("motion") == "motion" else 1.0
+    t_video = ((video_len - clip_len) * still_cost + clip_len * CLIP_COST) * encode_cost() * 0.7 \
         + len(per_slide) * 0.6 + video_len * 0.02
     return {"video_seconds": round(video_len), "max_seconds": MAX_VIDEO_SECONDS,
             "over_limit": video_len > MAX_VIDEO_SECONDS,
@@ -79,6 +81,17 @@ def estimate(proj):
             "encode_seconds": round(t_video), "engine": engine,
             "encoder": ENCODERS[best_encoder()][0], "slides": len(per_slide),
             "per_slide": [round(t, 1) for t in per_slide]}
+
+
+def _beat_frames(proj):
+    """Frames per beat of the project's library music, when motion graphics are on (else None)."""
+    if proj.get("motion") != "motion":
+        return None
+    from .ai import library
+    mood = (proj.get("music") or {}).get("library")
+    if not (proj.get("music") or {}).get("file") or mood not in library.MOODS:
+        return None
+    return max(1, round(60 / library.MOODS[mood]["bpm"] * FPS))
 
 
 def _hash(*parts):
@@ -254,6 +267,9 @@ def render_video(proj, progress=lambda stage, frac, msg: None, cancelled=lambda:
     # 3) frame-exact timeline, one audio track, subtitles — and the 15-minute limit
     progress("Timeline", 0, "Building audio track and subtitles")
     seg_frames = [math.ceil((max(d + LEAD_IN + TAIL_OUT, MIN_SLIDE) if d else MIN_SLIDE) * FPS) for d in durations]
+    beat = _beat_frames(proj)
+    if beat:      # motion graphics with library music: every cut lands on a beat
+        seg_frames = [math.ceil(nf / beat) * beat for nf in seg_frames]
     sting = proj.get("intro", True)
     sting_frames = int(STING * FPS) if sting else 0
     total = (sum(seg_frames) + 2 * sting_frames) / FPS
@@ -312,6 +328,7 @@ def render_video(proj, progress=lambda stage, frac, msg: None, cancelled=lambda:
     if sting:
         clips.append(frames / "intro.mp4")
     pip = proj.get("pip") or {}
+    motion_on = proj.get("motion") == "motion"
     for i, nf in enumerate(seg_frames):
         check()
         dur = nf / FPS
@@ -322,7 +339,11 @@ def render_video(proj, progress=lambda stage, frac, msg: None, cancelled=lambda:
         if i < n - 1 or sting:
             fades.append(f"fade=t=out:st={dur - FADE:.3f}:d={FADE}:color={navy}")
         png = str(frames / f"slide_{i:03d}.png")
-        if modes[i] == "clip":
+        if motion_on and modes[i] is None:
+            # animated scene: its own entrance and push-out instead of the dip-to-navy fade
+            if not motion.render_scene(proj, slides[i], i + 1, n, nf, LEAD_IN, durations[i], clip, enc, cancelled):
+                raise Cancelled()
+        elif modes[i] == "clip":
             ix, iy, size = inners[i]
             mask = frames / f"mask_{size}_{pip.get('shape', 'circle')}.png"
             if not mask.exists():

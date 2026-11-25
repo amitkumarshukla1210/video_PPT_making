@@ -146,6 +146,7 @@ function render() {
   $("#musicName").textContent = proj.music.file ? "✔ music added" : "No music";
   $("#musicVol").value = proj.music.volume; $("#musicVolVal").textContent = Math.round(proj.music.volume * 100) + "%";
   $("#intro").value = proj.intro === false ? "0" : "1";
+  $("#motion").value = proj.motion === "motion" ? "motion" : "classic";
   $("#sfx").checked = !!proj.sfx;
   $("#cleanAudio").checked = proj.clean_audio !== false;
   $("#libMood").value = proj.music.library || $("#libMood").value;
@@ -258,6 +259,7 @@ async function save() {
   document.querySelectorAll("[data-field]").forEach((el) => { body[el.dataset.field] = el.value; });
   body.voice = proj.voice; body.music = { volume: +$("#musicVol").value };
   body.intro = $("#intro").value === "1";
+  body.motion = $("#motion").value;
   body.sfx = $("#sfx").checked;
   body.clean_audio = $("#cleanAudio").checked;
   body.pip = { enabled: $("#pipEnabled").value === "1", position: $("#pipPosition").value,
@@ -451,7 +453,7 @@ function bind() {
   $("#recStop").onclick = () => rec.recorder?.stop();
   $("#recClose").onclick = () => { if (rec.recorder?.state === "recording") { rec.onDone = async () => {}; rec.recorder.stop(); } closeRecorder(); };
 
-  ["#pipEnabled", "#pipPosition", "#pipShape", "#pipSize", "#intro"].forEach((id) => ($(id).onchange = save));
+  ["#pipEnabled", "#pipPosition", "#pipShape", "#pipSize", "#intro", "#motion"].forEach((id) => ($(id).onchange = save));
   $("#pipPhotoFile").onchange = async (e) => {
     if (!e.target.files.length) return;
     await save(); proj = await upload(`/api/projects/${proj.id}/pip_photo`, e.target.files, "file"); render(); toast("Photo added");

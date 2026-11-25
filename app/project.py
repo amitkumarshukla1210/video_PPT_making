@@ -39,6 +39,7 @@ def new_project(name):
         "intro": True,
         "clean_audio": True,
         "sfx": False,
+        "motion": "classic",        # "motion" = animated scenes (charts, counters, kinetic text)
         "pip": {"enabled": False, "photo": None, "position": "br", "shape": "circle", "size": "m"},
         "created": time.strftime("%Y-%m-%d %H:%M"),
         "slides": [
@@ -62,6 +63,7 @@ def load(pid):
     data.setdefault("intro", True)
     data.setdefault("clean_audio", True)
     data.setdefault("sfx", False)
+    data.setdefault("motion", "classic")
     data.setdefault("pip", {"enabled": False, "photo": None, "position": "br", "shape": "circle", "size": "m"})
     return data
 
