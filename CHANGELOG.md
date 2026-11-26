@@ -6,6 +6,22 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.8.0 — 2026-11-26
+- **New: Tools** in the left menu, under ❖ Inspirations. They work like the tool sections of online AI suites,
+  but all offline:
+  - **🎬 Video** — a picture becomes an animated clip: camera push-in, your words rising over it, music
+    (4–15 s, any look). Shortcuts to Make a video, Inspirations and the Studio.
+  - **🖼 Image** — pictures from a prompt, with 9 styles, 3 shapes (16:9, 9:16, 1:1) and 1–4 at once, kept in
+    My pictures. Each picture has a "Clip" button.
+  - **🎙 Audio** — voice-over from text in any installed voice (also your cloned voice, and "speak as" a
+    character), music by mood and length, and sound effects. Play, download or save each one.
+  - **🧑 Character** — save a person once (name, look, optional portrait and voice). Type **@Name** in picture
+    prompts and in Make a video ideas, and the description is filled in, so the person looks the same in
+    every scene.
+  - **🌍 World** — save a place once and reuse it as **@Place**. A walkable 3D world is not possible offline;
+    scenes use camera moves instead.
+- Everything you make is kept in the app folder under `my_media\`. Updates keep it, and backups include it.
+
 ## 1.7.1 — 2026-11-26
 - **Inspirations: ▶ Preview.** Every example can now be played. Click the picture or **▶ Preview** to watch about
   10 seconds of its opening and first scenes, with its music. It is made on your laptop the first time

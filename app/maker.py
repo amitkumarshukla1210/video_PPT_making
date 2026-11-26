@@ -47,7 +47,8 @@ def build_from_source(pid, kind, files=(), url="", text="", scenes=8, language="
     elif kind == "idea":
         if not ai:
             raise RuntimeError("Writing from an idea needs the local AI (install_once.bat ai).")
-        r = writer.scenes_from_prompt(text, video_type, scenes, language, style,
+        from .tools import expand
+        r = writer.scenes_from_prompt(expand(text), video_type, scenes, language, style,
                                       lambda f, m: progress("AI script", f, m))
         sources.add_scenes(proj, [s | {"points": []} for s in r["scenes"]])
         title = r["scenes"][0]["title"] if r["scenes"] else ""
@@ -108,7 +109,8 @@ def make_pictures(proj, progress=lambda stage, f, m: None, cancelled=lambda: Fal
     if cancelled():
         raise Cancelled()
     base = P.folder(proj["id"])
-    prompts = [s.get("image_prompt") or f"{s['title']}, professional corporate photo, modern, clean" for s in todo]
+    from .tools import expand
+    prompts = [expand(s.get("image_prompt") or f"{s['title']}, professional corporate photo, modern, clean") for s in todo]
     progress("Creating pictures", 0.0, f"Loading the picture model for {len(todo)} pictures")
     pngs = images.generate(prompts, "16:9", progress=lambda d, t: progress(
         "Creating pictures", d / max(t, 1), f"Picture {min(d + 1, t)} of {t}"))     # one model load for all

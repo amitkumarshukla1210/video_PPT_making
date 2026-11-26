@@ -13,7 +13,7 @@ from .config import HOST, PORT, MAX_VIDEO_SECONDS, APP_NAME, MODULE_NAME, ROOT
 from .speech_api import bp as speech_bp
 from .version import app_version
 from .ai import llm, writer as ai_writer, dubbing, library
-from . import maker, sources, inspirations, motion
+from . import maker, sources, inspirations, motion, tools
 from .ffmpeg_utils import best_encoder, ENCODERS
 from .ppt_builder import build_pptx
 from .ppt_import import import_pptx
@@ -139,6 +139,163 @@ def inspiration_use(eid):
 
     jobs.start(f"{pid}:ai", work)
     return jsonify(project=pid, job=True)
+
+
+# ---------- Tools: Video, Image, Audio, Character, World ----------
+TOOL_PAGES = ("video", "image", "audio", "character", "world")
+
+
+@app.get("/tools")
+@app.get("/tools/<tool>")
+def tools_page(tool="video"):
+    if tool not in TOOL_PAGES:
+        abort(404)
+    return render_template("tools.html", version=app_version(), page="tool-" + tool, tool=tool)
+
+
+@app.get("/api/tools/state")
+def tools_state():
+    from .ai import images
+    return jsonify(styles={k: v[0] for k, v in tools.STYLES.items()}, looks={k: v["label"] for k, v in motion.LOOKS.items()},
+                   moods={k: v["label"] for k, v in library.MOODS.items()}, sfx=library.SFX, engines=tts.status(),
+                   default_engine=tts.default_engine(), images=images.status(),
+                   characters=tools.refs("characters"), worlds=tools.refs("worlds"),
+                   media={k: tools.media_list(k) for k in tools.KINDS})
+
+
+@app.get("/media/<kind>/<name>")
+def media_file(kind, name):
+    try:
+        path = tools.media_path(kind, name)
+    except (ValueError, FileNotFoundError):
+        abort(404)
+    return send_from_directory(path.parent, path.name, as_attachment=request.args.get("dl") == "1")
+
+
+@app.delete("/api/tools/media/<kind>/<name>")
+def media_delete(kind, name):
+    try:
+        tools.media_path(kind, name).unlink()
+    except (ValueError, FileNotFoundError):
+        abort(404)
+    return jsonify(ok=True)
+
+
+@app.get("/api/tools/job")
+def tools_job():
+    return jsonify(jobs.status("tools"))
+
+
+def _tool_job(fn):
+    j = jobs.status("tools")
+    if j.get("state") == "running":
+        abort(409, "Another tool is still working. Wait until it is done.")
+    return jsonify(jobs.start("tools", fn) | {"cancel": None})
+
+
+@app.post("/api/tools/image")
+def tool_image():
+    b = request.json or {}
+    prompt = str(b.get("prompt") or "").strip()[:1500]
+    if not prompt:
+        abort(400, "Describe the picture first.")
+    from .ai import images
+    if not images.status()["available"]:
+        abort(400, images.status()["info"])
+    return _tool_job(lambda progress, cancelled: tools.create_images(
+        prompt, str(b.get("style") or "none"), str(b.get("aspect") or "16:9"), b.get("n") or 1,
+        lambda f, m: progress("Creating pictures", f, m)))
+
+
+@app.post("/api/tools/upload")
+def tool_upload():
+    f = request.files.get("file")
+    if not f:
+        abort(400, "Choose a picture")
+    try:
+        return jsonify(name=tools.save_upload(f))
+    except ValueError as e:
+        abort(400, str(e))
+
+
+@app.post("/api/tools/clip")
+def tool_clip():
+    b = request.json or {}
+    try:
+        tools.media_path("images", str(b.get("image") or ""))
+    except (ValueError, FileNotFoundError):
+        abort(400, "Choose a picture first.")
+    return _tool_job(lambda progress, cancelled: {"video": tools.image_clip(
+        b["image"], str(b.get("title") or "")[:120], str(b.get("subtitle") or "")[:200], str(b.get("look") or "cinematic"),
+        b.get("seconds") or 6, str(b.get("music") or "cinematic"), lambda f, m: progress("Making the clip", f, m), cancelled)})
+
+
+@app.post("/api/tools/voice")
+def tool_voice():
+    b = request.json or {}
+    try:
+        name = tools.voice_over(str(b.get("text") or "")[:5000], b.get("engine"), b.get("voice"), b.get("lang"),
+                                b.get("speed") or 1.0)
+    except (ValueError, RuntimeError) as e:
+        abort(400, str(e))
+    return jsonify(name=name, url=f"/media/audio/{name}")
+
+
+@app.post("/api/tools/music")
+def tool_music():
+    b = request.json or {}
+    try:
+        name = tools.music(str(b.get("mood") or ""), b.get("seconds") or 30)
+    except ValueError as e:
+        abort(400, str(e))
+    return jsonify(name=name, url=f"/media/audio/{name}")
+
+
+@app.post("/api/tools/sfx/<name>")
+def tool_sfx(name):
+    if name not in library.SFX:
+        abort(404)
+    out = tools.sfx_copy(name)
+    return jsonify(name=out, url=f"/media/audio/{out}")
+
+
+@app.post("/api/tools/<kind>")
+def ref_save(kind):
+    if kind not in tools.REF_KINDS:
+        abort(404)
+    b = request.json or {}
+    try:
+        item = tools.save_ref(kind, b.get("name"), b.get("description"), b.get("voice"), b.get("image"), b.get("id"))
+    except ValueError as e:
+        abort(400, str(e))
+    return jsonify(item)
+
+
+@app.delete("/api/tools/<kind>/<rid>")
+def ref_delete(kind, rid):
+    if kind not in tools.REF_KINDS:
+        abort(404)
+    tools.delete_ref(kind, rid)
+    return jsonify(ok=True)
+
+
+@app.post("/api/tools/<kind>/<rid>/picture")
+def ref_picture(kind, rid):
+    """A portrait of the character / a view of the world, made from its description."""
+    if kind not in tools.REF_KINDS:
+        abort(404)
+    item = next((i for i in tools.refs(kind) if i["id"] == rid), None) or abort(404)
+    from .ai import images
+    if not images.status()["available"]:
+        abort(400, images.status()["info"])
+    style = "portrait photo, looking at the camera, soft light" if kind == "characters" else "wide establishing shot, cinematic"
+
+    def work(progress, cancelled):
+        r = tools.create_images(f"{item['description']}, {style}", "none", "16:9", 1,
+                                lambda f, m: progress("Creating the picture", f, m), prefix=kind[:-1])
+        tools.set_ref_image(kind, rid, r["images"][0])
+        return {"image": r["images"][0]}
+    return _tool_job(work)
 
 
 @app.get("/api/my_projects")

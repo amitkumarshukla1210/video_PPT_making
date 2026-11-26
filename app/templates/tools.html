@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tools — Design to Cost</title>
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="stylesheet" href="/static/dtc-theme.css">
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/make.css">
+<link rel="stylesheet" href="/static/tools.css">
+</head>
+<body data-tool="{{ tool }}">
+{% include '_sidebar.html' %}
+<header>
+  <div class="header-inner">
+    <a class="brand" href="/">
+      <img src="/static/logo.png" alt="Design to Cost logo">
+      <span class="brand-text"><span class="name">Design to Cost</span><span class="tagline">Tools · v{{ version }}</span></span>
+    </a>
+    <div class="top-actions"><a class="btn btn-outline" href="/inspirations">❖ Inspirations</a><a class="btn btn-primary" href="/make">✦ Make a video</a></div>
+  </div>
+</header>
+<main class="container tools">
+  <div class="proj-head">
+    <div class="kicker">Tools</div>
+    <h1>Create the pieces of your film</h1>
+    <p class="muted">Pictures, short clips, voice-overs, music, sound effects, characters and places. Everything runs on this laptop, with no API key, and is kept in <b>My media</b>.</p>
+  </div>
+  <nav class="tool-tabs" role="tablist" aria-label="Tools">
+    <a role="tab" href="/tools/video" data-t="video"><span>🎬</span><b>Video</b><small>Picture → animated clip</small></a>
+    <a role="tab" href="/tools/image" data-t="image"><span>🖼</span><b>Image</b><small>Prompt → pictures</small></a>
+    <a role="tab" href="/tools/audio" data-t="audio"><span>🎙</span><b>Audio</b><small>Voice-over · music · effects</small></a>
+    <a role="tab" href="/tools/character" data-t="character"><span>🧑</span><b>Character</b><small>Save a person, use @Name</small></a>
+    <a role="tab" href="/tools/world" data-t="world"><span>🌍</span><b>World</b><small>Save a place, use @Place</small></a>
+  </nav>
+
+  <!-- VIDEO -->
+  <section class="card tool hidden" id="t-video">
+    <h3>Picture → animated video clip</h3>
+    <p class="muted">Pick a picture (or upload one). It becomes a short shot: a slow camera push-in, your words rising over it, and music. Use clips in reels or as scenes.</p>
+    <div class="pick-grid" id="clipPick"></div>
+    <div class="row wrap"><label class="btn btn-outline small" for="clipUpload">⬆ Upload a picture</label><input type="file" id="clipUpload" accept="image/*" class="visually-hidden"><a class="btn btn-outline small" href="/tools/image">🖼 Create a picture</a></div>
+    <div class="grid-opts">
+      <div><label for="clipTitle">Words on screen</label><input id="clipTitle" placeholder="e.g. The water is gone"></div>
+      <div><label for="clipSub">Second line (optional)</label><input id="clipSub" placeholder="e.g. In cinemas this winter"></div>
+      <div><label for="clipLook">Look</label><select id="clipLook"></select></div>
+      <div><label for="clipSecs">Length</label><select id="clipSecs"><option>4</option><option selected>6</option><option>8</option><option>10</option><option>15</option></select></div>
+      <div><label for="clipMusic">Music</label><select id="clipMusic"><option value="">No music</option></select></div>
+    </div>
+    <div class="row wrap"><button class="btn btn-primary" id="clipGo">🎬 Make the clip</button><span class="muted" id="clipStatus" aria-live="polite"></span></div>
+    <div class="progress hidden" id="clipProg"><div class="bar"><div></div></div><p class="muted"></p></div>
+    <div id="clipResult"></div>
+    <h3 class="sub">More ways to make a video</h3>
+    <div class="link-cards">
+      <a href="/make"><b>✦ Idea, PPT, document or link → full video</b><span>Script scene by scene, voice-over, YouTube / Reel / corporate</span></a>
+      <a href="/inspirations"><b>❖ Start from an example</b><span>32 trailers, reels, ads, music videos and explainers</span></a>
+      <a href="/studio/"><b>◉ Video &amp; Voice Studio</b><span>Edit scenes, timing and music by hand in the browser</span></a>
+    </div>
+    <h3 class="sub">My clips</h3>
+    <div class="media-list" id="videoList"></div>
+  </section>
+
+  <!-- IMAGE -->
+  <section class="card tool hidden" id="t-image">
+    <h3>Create pictures from a prompt</h3>
+    <label for="imgPrompt">Describe the picture</label>
+    <textarea id="imgPrompt" rows="3" placeholder="e.g. @Maya walking through @OldCity at sunset, rain on the street"></textarea>
+    <div class="refs-row" id="imgRefs"></div>
+    <div class="grid-opts">
+      <div><label for="imgStyle">Style</label><select id="imgStyle"></select></div>
+      <div><label for="imgAspect">Shape</label><select id="imgAspect"><option value="16:9">16:9 · YouTube, films</option><option value="9:16">9:16 · Reels, Shorts</option><option value="1:1">1:1 · square posts</option></select></div>
+      <div><label for="imgN">How many</label><select id="imgN"><option>1</option><option selected>2</option><option>4</option></select></div>
+    </div>
+    <div class="row wrap"><button class="btn btn-primary" id="imgGo">🖼 Create</button><span class="muted" id="imgStatus" aria-live="polite"></span></div>
+    <div class="progress hidden" id="imgProg"><div class="bar"><div></div></div><p class="muted"></p></div>
+    <h3 class="sub">My pictures</h3>
+    <div class="pic-grid" id="imageList"></div>
+  </section>
+
+  <!-- AUDIO -->
+  <section class="card tool hidden" id="t-audio">
+    <h3>Voice-over</h3>
+    <textarea id="vText" rows="4" placeholder="Type what the voice should say. @Name is read as the person's name."></textarea>
+    <div class="grid-opts">
+      <div><label for="vAs">Speak as</label><select id="vAs"><option value="">Choose a voice below</option></select></div>
+      <div><label for="vEngine">Voice engine</label><select id="vEngine"></select></div>
+      <div><label for="vLang">Language</label><select id="vLang"></select></div>
+      <div><label for="vVoice">Voice</label><select id="vVoice"></select></div>
+      <div><label for="vSpeed">Speed <output id="vSpeedOut">1.00</output></label><input type="range" id="vSpeed" min="0.7" max="1.3" step="0.05" value="1"></div>
+    </div>
+    <div class="row wrap"><button class="btn btn-primary" id="vGo">🎙 Create voice-over</button><span class="muted" id="vStatus" aria-live="polite"></span></div>
+    <h3 class="sub">Music</h3>
+    <div class="grid-opts">
+      <div><label for="mMood">Mood</label><select id="mMood"></select></div>
+      <div><label for="mSecs">Length (seconds)</label><input type="number" id="mSecs" min="5" max="600" value="30"></div>
+    </div>
+    <div class="row wrap"><button class="btn btn-outline" id="mGo">♪ Create music</button><span class="muted" id="mStatus" aria-live="polite"></span></div>
+    <h3 class="sub">Sound effects</h3>
+    <div class="sfx-list" id="sfxList"></div>
+    <h3 class="sub">My audio</h3>
+    <div class="media-list" id="audioList"></div>
+  </section>
+
+  <!-- CHARACTER / WORLD (same layout) -->
+  <section class="card tool hidden" id="t-character" data-kind="characters"></section>
+  <section class="card tool hidden" id="t-world" data-kind="worlds"></section>
+</main>
+<footer><div class="footnote">© Design to Cost · Tools · version {{ version }} · runs offline on this laptop</div></footer>
+<div id="toast" class="toast hidden"></div>
+<script src="/static/tools.js"></script>
+</body>
+</html>

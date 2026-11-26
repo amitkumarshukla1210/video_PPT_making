@@ -106,6 +106,20 @@ You only do steps 1–3 once.
 
 After setup you can switch off the internet. Everything works offline.
 
+## Tools (v1.8.0): Video, Image, Audio, Character, World
+
+These are in the left menu under **Tools**, all offline:
+
+| Tool | What it does |
+|---|---|
+| **🎬 Video** | A picture becomes an animated clip: camera push-in, words on screen and music |
+| **🖼 Image** | Pictures from a prompt, with styles and shapes (needs `install_once.bat images`) |
+| **🎙 Audio** | Voice-over in any of your voices, music by mood and length, and sound effects |
+| **🧑 Character** | Save a person once, then type **@Name** in prompts so they look the same everywhere |
+| **🌍 World** | Save a place once, then type **@Place** in prompts |
+
+Your files are kept in `my_media\` inside the app folder.
+
 ## Inspirations (v1.7.0): 32 example videos
 
 Open **❖ Inspirations** in the left menu (or http://localhost:8000/inspirations). There are **8 categories**:
