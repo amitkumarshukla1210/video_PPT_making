@@ -223,7 +223,7 @@ def sfx_copy(name):
 
 # ---------- Video: picture → animated clip ----------
 def image_clip(image_name, title="", subtitle="", look="cinematic", seconds=6, mood="cinematic",
-               progress=lambda f, m: None, cancelled=lambda: False):
+               progress=lambda f, m: None, cancelled=lambda: False, fx="drift"):
     """A picture becomes a short animated shot: camera push-in, the words rising over it, music under it."""
     from . import motion
     from .ai import library
@@ -233,7 +233,8 @@ def image_clip(image_name, title="", subtitle="", look="cinematic", seconds=6, m
     proj = {"id": "tools", "look": look if look in motion.LOOKS else "cinematic", "logo": None,
             "title": title, "subtitle": "", "presenter": "", "company": "", "contact": ""}
     scene = {"kind": "content", "title": title.strip(), "notes": subtitle.strip(), "script": "",
-             "image": str(src.resolve())}                     # absolute path: read straight from My media
+             "image": str(src.resolve()),                     # absolute path: read straight from My media
+             "fx": fx if fx in motion.FX else "drift"}
     sc = motion.Scene(proj, scene, 1, 1, seconds, 0.3, max(seconds - 1.2, 0.5))
     n = int(seconds * FPS)
     name = _stamp("clip", ".mp4")

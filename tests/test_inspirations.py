@@ -1,4 +1,4 @@
-"""Inspirations: 32 example videos in 8 categories, thumbnails, "use this example", AI adaptation."""
+"""Inspirations: 100 example videos in 9 categories (incl. viral picture presets), thumbnails, "use this example", AI adaptation."""
 import io
 import json
 import sys
@@ -9,7 +9,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from PIL import Image  # noqa: E402
+from PIL import Image, ImageChops  # noqa: E402
 
 from app import project as P, inspirations as I, motion  # noqa: E402
 from app.ai import llm  # noqa: E402
@@ -25,18 +25,20 @@ def client():
         P.delete(pid)
 
 
-def test_32_examples_in_8_labelled_categories(client):
+def test_100_examples_in_9_labelled_categories(client):
     cat = client.get("/api/inspirations").get_json()
-    assert len(cat["examples"]) == 32 and len(cat["categories"]) == 8
-    assert all(c["count"] == 4 for c in cat["categories"])
+    assert len(cat["examples"]) == 100 and len(cat["categories"]) == 9
+    assert {c["id"]: c["count"] for c in cat["categories"]}["viral"] == 12
+    assert all(c["count"] == 11 for c in cat["categories"] if c["id"] != "viral")
     labels = {c["label"] for c in cat["categories"]}
     assert {"Trending Templates", "Short Film", "Music Video", "UGC Ads", "Product Ads", "Film Trailer",
-            "Social Content", "Explainer"} == labels
+            "Social Content", "Explainer", "Viral presets"} == labels
+    assert len({e["id"] for e in cat["examples"]}) == 100 and len({e["name"] for e in cat["examples"]}) == 100
     for e in cat["examples"]:
         assert e["category_label"] in labels and e["format"] in ("16:9", "9:16", "1:1") and e["look"] in motion.LOOKS
     assert set(cat["looks"]) == {"corporate", "cinematic", "bold", "warm"}
     page = client.get("/inspirations").get_data(as_text=True)
-    assert "32 example videos" in page and 'href="/inspirations"' in client.get("/").get_data(as_text=True)
+    assert "100 example videos" in page and 'href="/inspirations"' in client.get("/").get_data(as_text=True)
 
 
 def test_every_thumbnail_draws(client):
@@ -138,3 +140,24 @@ def test_hours_are_not_rupees():
     ys = sorted({y for y in range(250, 900, 3) if im.getpixel((1000, y)) in (orange, motion.BLUE_)})
     first_orange = min(y for y in ys if im.getpixel((1000, y)) == orange)
     assert first_orange == ys[0]          # the longest battery life (Ours, first bar) is highlighted, not the shortest
+
+
+def test_viral_presets_are_photo_effects(client):
+    presets = [e for e in I.EXAMPLES if e.get("preset")]
+    assert len(presets) == 12 and {e["preset"]["fx"] for e in presets} == set(motion.FX)    # every effect is shown
+    r = client.get("/inspirations/preview/v-countdown.mp4")
+    assert r.status_code == 200
+    assert client.post("/api/inspirations/v-glitch/use", json={}).status_code == 400          # used in Tools › Video
+    st = client.get("/api/tools/state").get_json()
+    assert st["presets"]["v-polaroid"]["fx"] == "polaroid" and "glitch" in st["fx"]
+
+
+@pytest.mark.parametrize("fx", list(motion.FX))
+def test_every_effect_moves(fx):
+    from app.sample_photos import sample
+    proj = {"id": "x", "look": "bold", "logo": None}
+    s = {"kind": "content", "title": "Hello", "notes": "", "script": "", "image": None, "_photo": sample("city"), "fx": fx}
+    sc = motion.Scene(proj, s, 1, 1, 5.0, 0.3, 4)
+    assert sc.p["type"] == "film"
+    frames = [sc.frame(t) for t in (0.2, 1.0, 2.0, 3.3)]
+    assert any(ImageChops.difference(a, b).getbbox() for a, b in zip(frames, frames[1:])), fx

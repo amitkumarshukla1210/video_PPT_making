@@ -86,7 +86,7 @@ def projects_page():
 
 @app.get("/inspirations")
 def inspirations_page():
-    """32 example videos in 8 categories, to start from."""
+    """100 example videos in 9 categories (incl. 12 viral picture presets), to start from."""
     return render_template("inspirations.html", version=app_version(), page="inspirations")
 
 
@@ -123,6 +123,8 @@ def inspiration_use(eid):
         abort(404, "Unknown example")
     b = request.json or {}
     topic = str(b.get("topic") or "").strip()[:500]
+    if inspirations.BY_ID[eid].get("preset"):
+        abort(400, "Picture presets are used in Tools › Video with your own photo.")
     proj = inspirations.create(eid, str(b.get("name") or "").strip()[:80] or None)
     pid = proj["id"]
     if not topic:
@@ -156,7 +158,10 @@ def tools_page(tool="video"):
 @app.get("/api/tools/state")
 def tools_state():
     from .ai import images
-    return jsonify(styles={k: v[0] for k, v in tools.STYLES.items()}, looks={k: v["label"] for k, v in motion.LOOKS.items()},
+    presets = {e["id"]: {"name": e["name"], "look": e["look"], "music": e["music"], **e["preset"]}
+               for e in inspirations.EXAMPLES if e.get("preset")}
+    return jsonify(presets=presets, fx=motion.FX,
+                   styles={k: v[0] for k, v in tools.STYLES.items()}, looks={k: v["label"] for k, v in motion.LOOKS.items()},
                    moods={k: v["label"] for k, v in library.MOODS.items()}, sfx=library.SFX, engines=tts.status(),
                    default_engine=tts.default_engine(), images=images.status(),
                    characters=tools.refs("characters"), worlds=tools.refs("worlds"),
@@ -227,7 +232,8 @@ def tool_clip():
         abort(400, "Choose a picture first.")
     return _tool_job(lambda progress, cancelled: {"video": tools.image_clip(
         b["image"], str(b.get("title") or "")[:120], str(b.get("subtitle") or "")[:200], str(b.get("look") or "cinematic"),
-        b.get("seconds") or 6, str(b.get("music") or "cinematic"), lambda f, m: progress("Making the clip", f, m), cancelled)})
+        b.get("seconds") or 6, str(b.get("music") or "cinematic"), lambda f, m: progress("Making the clip", f, m), cancelled,
+        fx=str(b.get("fx") or "drift"))})
 
 
 @app.post("/api/tools/voice")

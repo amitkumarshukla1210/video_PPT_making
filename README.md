@@ -120,10 +120,12 @@ These are in the left menu under **Tools**, all offline:
 
 Your files are kept in `my_media\` inside the app folder.
 
-## Inspirations (v1.7.0): 32 example videos
+## Inspirations (v1.9.0): 100 example videos
 
-Open **❖ Inspirations** in the left menu (or http://localhost:8000/inspirations). There are **8 categories**:
-Trending Templates, Short Film, Music Video, UGC Ads, Product Ads, Film Trailer, Social Content and Explainer.
+Open **❖ Inspirations** in the left menu (or http://localhost:8000/inspirations). There are **9 categories**:
+Trending Templates, Short Film, Music Video, UGC Ads, Product Ads, Film Trailer, Social Content, Explainer and
+**Viral presets**. The Viral presets put your photo, a camera effect (zoom punch, glitch, polaroid, VHS, countdown…),
+words and music together. Press ▶ on any card to watch a short preview.
 Each example shows its category label, its format (16:9, 9:16 or 1:1), its look and its music.
 
 To use one:

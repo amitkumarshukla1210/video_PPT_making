@@ -60,7 +60,8 @@ async function makeClip() {
   $("#clipGo").disabled = true;
   try {
     await api("/api/tools/clip", { method: "POST", json: { image: pickedImage, title: $("#clipTitle").value,
-      subtitle: $("#clipSub").value, look: $("#clipLook").value, seconds: +$("#clipSecs").value, music: $("#clipMusic").value } });
+      subtitle: $("#clipSub").value, look: $("#clipLook").value, seconds: +$("#clipSecs").value, music: $("#clipMusic").value,
+      fx: $("#clipFx").value } });
     const r = await waitJob($("#clipProg"));
     await refresh(); renderMedia();
     $("#clipResult").innerHTML = `<video controls autoplay src="/media/videos/${r.video}"></video>
@@ -154,6 +155,19 @@ function show(tool) {
 async function init() {
   await refresh();
   $("#clipLook").innerHTML = opts(st.looks, "cinematic");
+  $("#clipFx").innerHTML = opts(st.fx, "drift");
+  $("#clipPreset").insertAdjacentHTML("beforeend", Object.entries(st.presets).map(([k, p]) => `<option value="${k}">⚡ ${esc(p.name)}</option>`).join(""));
+  const usePreset = (id) => {
+    const p = st.presets[id]; if (!p) return;
+    $("#clipPreset").value = id; $("#clipFx").value = p.fx; $("#clipLook").value = p.look; $("#clipMusic").value = p.music;
+    $("#clipTitle").value = p.title; $("#clipSub").value = p.subtitle || "";
+    const secs = String(Math.round(p.seconds));
+    if (![...$("#clipSecs").options].some((o) => o.value === secs)) $("#clipSecs").insertAdjacentHTML("beforeend", `<option>${secs}</option>`);
+    $("#clipSecs").value = secs;
+  };
+  $("#clipPreset").onchange = () => usePreset($("#clipPreset").value);
+  const qp = new URLSearchParams(location.search).get("preset");
+  if (qp) { usePreset(qp); setTimeout(() => toast("Preset ready — now pick or upload your photo, then Make the clip"), 300); }
   $("#clipMusic").insertAdjacentHTML("beforeend", opts(st.moods, "cinematic"));
   $("#clipMusic").value = "cinematic";
   $("#imgStyle").innerHTML = opts(st.styles, "cinematic");

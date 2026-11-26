@@ -64,7 +64,7 @@ def test_picture_to_clip(client):
                        content_type="multipart/form-data").get_json()["name"]
     assert client.post("/api/tools/upload", data={"file": (io.BytesIO(b"x"), "a.exe")},
                        content_type="multipart/form-data").status_code == 400
-    clip = tools.image_clip(name, "The water is gone", "This winter", "cinematic", 3, "cinematic")
+    clip = tools.image_clip(name, "The water is gone", "This winter", "cinematic", 3, "cinematic", fx="glitch")
     secs, info = _duration(tools.media_path("videos", clip))
     assert abs(secs - 3) < 0.3 and "1920x1080" in info and "Audio: aac" in info
     listed = client.get("/api/tools/state").get_json()["media"]
