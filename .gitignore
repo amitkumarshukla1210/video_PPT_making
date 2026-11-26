@@ -28,3 +28,4 @@ backups/
 .venv-image/
 models/thumbs/
 models/library/
+models/previews/

@@ -100,6 +100,11 @@ def test_inspirations_gallery_to_wizard(page):
     p.click(".chip[data-cat=music_video]")
     assert p.locator(".ex").count() == 4
     assert all("Music Video" in t for t in p.locator(".ex .ex-cat").all_text_contents())    # category label on each
+    with p.expect_response(lambda r: "/inspirations/preview/hype-beat.mp4" in r.url, timeout=60_000) as resp:
+        p.click(".ex-thumb[data-preview=hype-beat]")                 # ▶ on the picture plays the preview
+    assert resp.value.status in (200, 206) and resp.value.headers["content-type"] == "video/mp4"
+    assert p.evaluate("() => getComputedStyle(document.querySelector('#useVideo')).transform") == "none"   # not mirrored
+    p.click("#useCancel")
     p.click("[data-use=hype-beat]")
     assert "Music Video · 9:16" in p.text_content("#useCat")
     p.fill("#useName", "Hype e2e")
