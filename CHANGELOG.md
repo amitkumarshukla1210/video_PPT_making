@@ -6,6 +6,13 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.7.1 — 2026-11-26
+- **Inspirations: ▶ Preview.** Every example can now be played. Click the picture or **▶ Preview** to watch about
+  10 seconds of its opening and first scenes, with its music. It is made on your laptop the first time
+  (about 10–20 seconds), then it starts instantly.
+- Fix: videos played in a dialog were shown mirrored. Only the webcam preview is mirrored now.
+- Fix: in charts, "hrs" (hours) was read as "Rs" (rupees), so the wrong bar was highlighted.
+
 ## 1.7.0 — 2026-11-25
 - **New: Inspirations** (`/inspirations`, first item in the left menu): **32 example videos in 8 categories**, each
   with its category label. The categories are Trending Templates, Short Film, Music Video, UGC Ads, Product Ads,

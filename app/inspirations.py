@@ -211,7 +211,7 @@ def public(e):
     return {"id": e["id"], "category": e["cat"], "category_label": cat[1], "icon": cat[2], "name": e["name"],
             "blurb": e["blurb"], "type": e["type"], "format": TYPE_LABEL[e["type"]], "look": e["look"],
             "music": e["music"], "voice": e.get("voice", True), "scenes": len(e["scenes"]),
-            "thumb": f"/inspirations/thumb/{e['id']}.jpg"}
+            "thumb": f"/inspirations/thumb/{e['id']}.jpg", "preview": f"/inspirations/preview/{e['id']}.mp4"}
 
 
 def catalogue():
@@ -307,6 +307,63 @@ def thumbnail(eid):
     cache.parent.mkdir(parents=True, exist_ok=True)
     cache.write_bytes(buf.getvalue())
     return buf.getvalue()
+
+
+_preview_locks = {}
+PREVIEW_FPS = 24
+PREVIEW_SCENE = 2.8        # seconds per scene in the preview
+
+
+def preview_path(eid):
+    from .config import MODELS_DIR
+    from .version import app_version
+    return MODELS_DIR / "previews" / f"{eid}-{app_version()}.mp4"
+
+
+def preview(eid):
+    """A short animated preview (about 10 s, 640x360, with the example's music): the opening and the first
+    three scenes, drawn by the motion engine on this laptop. Made the first time it is played, then cached."""
+    import subprocess
+    import threading
+    from . import motion
+    from .ffmpeg_utils import ffmpeg_bin
+    e = BY_ID[eid]
+    out = preview_path(eid)
+    lock = _preview_locks.setdefault(eid, threading.Lock())
+    with lock:                                   # two clicks on the same example make it once
+        if out.exists():
+            return out
+        out.parent.mkdir(parents=True, exist_ok=True)
+        proj = {"id": "inspiration", "look": e["look"], "title": e["open"][0], "subtitle": e["open"][1],
+                "presenter": "", "company": "", "contact": "", "logo": None}
+        voice = e.get("voice", True)
+        scenes = [{"kind": "title", "title": e["open"][0], "notes": e["open"][1], "script": "", "image": None}]
+        scenes += [dict(sc, kind="content", image=None, script=sc["script"] if voice else "") for sc in e["scenes"][:3]]
+        n_f = int(PREVIEW_SCENE * PREVIEW_FPS)
+        total = len(scenes) * PREVIEW_SCENE
+        tmp = out.with_suffix(".part.mp4")
+        cmd = [ffmpeg_bin(), "-hide_banner", "-loglevel", "error", "-y",
+               "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{motion.W}x{motion.H}", "-r", str(PREVIEW_FPS), "-i", "-",
+               "-i", str(library.music_file(e["music"])),
+               "-filter_complex", f"[0:v]scale=640:360:flags=bilinear,format=yuv420p[v];"
+                                  f"[1:a]volume=0.8,afade=t=out:st={total - 1.5:.2f}:d=1.5[a]",
+               "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "veryfast", "-crf", "27",
+               "-c:a", "aac", "-b:a", "96k", "-t", f"{total:.2f}", "-movflags", "+faststart", str(tmp)]
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            for k, s in enumerate(scenes):
+                sc = motion.Scene(proj, s, k + 1, len(scenes), PREVIEW_SCENE, 0.3, PREVIEW_SCENE - 0.8)
+                for f in range(n_f):
+                    proc.stdin.write(sc.frame(f / PREVIEW_FPS).tobytes())
+            proc.stdin.close()
+        except BrokenPipeError:
+            pass
+        err = proc.stderr.read().decode("utf-8", "replace")
+        if proc.wait() != 0:
+            tmp.unlink(missing_ok=True)
+            raise RuntimeError("Preview failed:\n" + err[-800:])
+        tmp.replace(out)
+        return out
 
 
 assert len(EXAMPLES) == 32 and all(e["music"] in library.MOODS for e in EXAMPLES)

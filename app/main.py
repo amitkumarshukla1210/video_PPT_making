@@ -104,6 +104,18 @@ def inspiration_thumb(eid):
                     headers={"Cache-Control": "max-age=86400"})
 
 
+@app.get("/inspirations/preview/<eid>.mp4")
+def inspiration_preview(eid):
+    """About 10 s animated preview with music; made on first play (10–20 s), then served from the cache."""
+    if eid not in inspirations.BY_ID:
+        abort(404)
+    try:
+        path = inspirations.preview(eid)
+    except Exception as e:
+        abort(500, str(e))
+    return send_from_directory(path.parent, path.name, mimetype="video/mp4", max_age=86400)
+
+
 @app.post("/api/inspirations/<eid>/use")
 def inspiration_use(eid):
     """A new project from an example. With a topic and the local AI, the AI adapts it (background job)."""

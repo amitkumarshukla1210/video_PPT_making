@@ -482,7 +482,7 @@ class Scene:
         fv = font("bold", int(min(50, row * 0.42)))
         # prices and costs: the lowest is the one to notice (best quote); otherwise the largest
         text = (self.title + " " + " ".join(b["text"] for b in bars)).lower()
-        costy = re.search(r"cost|price|quote|rate|spend|₹|\$|€|£|rs\b|inr", text)
+        costy = re.search(r"cost|price|quote|\brate|spend|₹|\$|€|£|\brs\b|\binr\b", text)   # not "hrs"
         versus = re.search(r"supplier|vendor|quote|brand|ours|competitor|option|offer", text)
         pick = min if costy and versus else max          # comparing offers: cheapest; a breakdown: biggest
         best = pick(range(len(bars)), key=lambda k: bars[k]["value"])

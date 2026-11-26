@@ -114,3 +114,27 @@ def test_rupees_use_indian_grouping():
     assert motion._fmt(n, n["value"]) == "₹9,00,000"
     n = motion._number("Budget $1,250,000")
     assert motion._fmt(n, n["value"]) == "$1,250,000"
+
+
+def test_preview_video_plays_with_music(client, tmp_path):
+    from tests.test_pipeline import _duration
+    r = client.get("/inspirations/preview/spec-compare.mp4")
+    assert r.status_code == 200 and r.mimetype == "video/mp4"
+    f = tmp_path / "p.mp4"
+    f.write_bytes(r.get_data())
+    secs, info = _duration(f)
+    want = (1 + min(3, len(I.BY_ID["spec-compare"]["scenes"]))) * I.PREVIEW_SCENE      # opening + up to 3 scenes
+    assert abs(secs - want) < 0.5 and "640x360" in info and "Audio: aac" in info
+    assert client.get("/inspirations/preview/nope.mp4").status_code == 404
+    assert all(e["preview"].endswith(f"{e['id']}.mp4") for e in client.get("/api/inspirations").get_json()["examples"])
+
+
+def test_hours_are_not_rupees():
+    proj = {"id": "x", "look": "corporate"}
+    s = {"kind": "content", "title": "Battery life", "notes": "Ours: 40 hrs\nBrand A: 28 hrs\nBrand B: 22 hrs",
+         "script": "", "image": None}
+    im = motion.still(proj, s, 1, 3, at=4.5, dur=6)
+    orange = motion.ORANGE_
+    ys = sorted({y for y in range(250, 900, 3) if im.getpixel((1000, y)) in (orange, motion.BLUE_)})
+    first_orange = min(y for y in ys if im.getpixel((1000, y)) == orange)
+    assert first_orange == ys[0]          # the longest battery life (Ours, first bar) is highlighted, not the shortest
