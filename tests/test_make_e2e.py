@@ -96,9 +96,9 @@ def test_inspirations_gallery_to_wizard(page):
     p = page
     p.goto(p.base + "/inspirations")
     p.wait_for_selector("body[data-ready=true]")
-    assert p.locator(".ex").count() == 32
+    assert p.locator(".ex").count() == 100
     p.click(".chip[data-cat=music_video]")
-    assert p.locator(".ex").count() == 4
+    assert p.locator(".ex").count() == 11
     assert all("Music Video" in t for t in p.locator(".ex .ex-cat").all_text_contents())    # category label on each
     with p.expect_response(lambda r: "/inspirations/preview/hype-beat.mp4" in r.url, timeout=60_000) as resp:
         p.click(".ex-thumb[data-preview=hype-beat]")                 # ▶ on the picture plays the preview
@@ -122,3 +122,18 @@ def test_inspirations_gallery_to_wizard(page):
         assert p.is_checked("input[name=vtype][value=reel]") and p.is_checked("input[name=motion][value=motion]")
     finally:
         P.delete(pid)
+
+
+def test_viral_preset_opens_tools_video(page):
+    p = page
+    p.goto(p.base + "/inspirations?cat=viral")
+    p.wait_for_selector("body[data-ready=true]")
+    assert p.locator(".ex").count() == 12
+    assert "Use with my photo" in p.text_content("[data-use=v-polaroid]")
+    p.click("[data-use=v-polaroid]")
+    assert p.is_hidden("#useTopic")
+    p.click("#useGo")
+    p.wait_for_url("**/tools/video?preset=v-polaroid")
+    p.wait_for_selector("body[data-ready=true]")
+    assert p.input_value("#clipFx") == "polaroid" and p.input_value("#clipLook") == "warm"
+    assert p.input_value("#clipTitle") == "Best day ever"

@@ -1,4 +1,4 @@
-// Inspirations: 32 example videos in 8 categories. "Use this example" makes a project and opens Make a video.
+// Inspirations: 100 example videos in 9 categories. "Use this example" makes a project and opens Make a video.
 const $ = (s) => document.querySelector(s);
 let cat = null, data = null, chosen = null;
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -33,9 +33,9 @@ function renderGrid() {
         <div class="ex-cat">${e.icon} ${esc(e.category_label)}</div>
         <h3>${esc(e.name)}</h3>
         <p>${esc(e.blurb)}</p>
-        <div class="ex-tags"><span>${e.scenes} scenes</span><span>${LOOK[e.look]} look</span><span>♪ ${esc(e.music)}</span>${e.voice ? "<span>🎙 voice-over</span>" : "<span>music only</span>"}</div>
+        <div class="ex-tags">${e.kind === "preset" ? "<span>⚡ your photo + effect</span>" : `<span>${e.scenes} scenes</span>`}<span>${LOOK[e.look]} look</span><span>♪ ${esc(e.music)}</span>${e.kind === "preset" ? "" : e.voice ? "<span>🎙 voice-over</span>" : "<span>music only</span>"}</div>
         <div class="ex-actions"><button class="btn btn-outline small" data-preview="${e.id}">▶ Preview</button>
-        <button class="btn btn-primary small" data-use="${e.id}">Use this example →</button></div>
+        <button class="btn btn-primary small" data-use="${e.id}">${e.kind === "preset" ? "Use with my photo →" : "Use this example →"}</button></div>
       </div>
     </article>`).join("");
 }
@@ -66,10 +66,18 @@ function open(e, autoplay = false) {
     ? "With a topic, the local AI rewrites the example for it (about 1 minute). Leave it empty to use the example as it is."
     : "The local AI is not running: the example opens as it is and you change the words in step 2.";
   $("#useTopic").disabled = !data.ai;
+  const preset = e.kind === "preset";
+  for (const id of ["#useName", "#useTopic", "#useLang", "#useNote"]) {
+    $(id).classList.toggle("hidden", preset);
+    document.querySelector(`label[for=${id.slice(1)}]`)?.classList.toggle("hidden", preset);
+  }
+  $("#useGo").textContent = preset ? "Use with my photo →" : "Use this example →";
+  if (preset) $("#useNote").textContent = "";
   $("#useBox").classList.remove("hidden");
   if (autoplay) play(e); else $("#useName").focus();
 }
 async function use() {
+  if (chosen.kind === "preset") { location.href = `/tools/video?preset=${chosen.id}`; return; }
   $("#useGo").disabled = true;
   try {
     const r = await api(`/api/inspirations/${chosen.id}/use`, { method: "POST",

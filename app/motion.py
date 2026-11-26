@@ -15,7 +15,7 @@ import math
 import re
 import subprocess
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps
 
 from . import layout as L
 from .config import NAVY, BLUE, ORANGE, WHITE, GREY, VIDEO_W, VIDEO_H, FPS
@@ -90,6 +90,23 @@ LOOKS = {
 }
 
 
+# camera effects for picture scenes (Tools › Video and the "Viral presets" in Inspirations)
+FX = {
+    "drift": "Dreamy drift — slow push-in",
+    "zoom_punch": "Zoom punch — hits on every beat",
+    "pull_back": "Pull-back reveal",
+    "spin_in": "Spin-in",
+    "glitch": "Glitch — colour split on the beat",
+    "shake": "Camera shake",
+    "polaroid": "Polaroid drop",
+    "split_reveal": "Split reveal — three panels",
+    "vhs": "VHS retro tape",
+    "flash_cuts": "Flash cuts — new framing every beat",
+    "duotone": "Duotone poster",
+    "countdown": "3 · 2 · 1 countdown",
+}
+
+
 def look_of(proj):
     return LOOKS.get(proj.get("look") or "corporate", LOOKS["corporate"])
 
@@ -127,11 +144,14 @@ def _number(line):
 def plan(proj, s):
     """Which motion language this scene uses, and its data."""
     points = L.bullets(s.get("notes"), limit=6)
-    image = s.get("image") if s.get("image") and (folder(proj["id"]) / s["image"]).exists() else None
+    if s.get("_photo") is not None:                 # a picture given directly (previews of picture presets)
+        image = "sample"
+    else:
+        image = s.get("image") if s.get("image") and (folder(proj["id"]) / s["image"]).exists() else None
     if s["kind"] in ("title", "closing"):
         return {"type": "title", "points": points}
     nums = [n for n in (_number(p) for p in points) if n]
-    if image and look_of(proj)["statement"] and not nums:
+    if image and (s.get("fx") or (look_of(proj)["statement"] and not nums)):
         return {"type": "film", "points": points, "image": image}      # full-screen shot, words over it
     if image:
         return {"type": "photo", "points": points, "image": image}
@@ -143,7 +163,7 @@ def plan(proj, s):
         return {"type": "bars", "bars": same[:6], "points": rest}
     if nums:
         return {"type": "counter", "number": nums[0], "points": [p for p in points if p != nums[0]["text"]]}
-    if not points and look_of(proj)["statement"]:
+    if not points and (look_of(proj)["statement"] or not (s.get("script") or "").strip()):
         return {"type": "statement", "points": []}
     return {"type": "points", "points": points}
 
@@ -251,8 +271,11 @@ class Scene:
         self.when = anchors(self.points, s.get("script"), lead_in, spoken, start=0.9)
         self.bg = self._background()
         if self.p["type"] in ("photo", "film"):
-            with Image.open(folder(proj["id"]) / self.p["image"]) as im:
-                self.photo = im.convert("RGB")
+            if s.get("_photo") is not None:
+                self.photo = s["_photo"].convert("RGB")
+            else:
+                with Image.open(folder(proj["id"]) / self.p["image"]) as im:
+                    self.photo = im.convert("RGB")
 
     # static background: drawn once
     def _background(self):
@@ -364,17 +387,7 @@ class Scene:
 
     # — film: the picture fills the screen, a slow push-in, the words rise over a dark gradient
     def _film(self, im, d, t):
-        src = self.photo
-        z = 1.0 + 0.08 * in_out(prog(t, 0, self.dur))
-        sc = max(W / src.width, H / src.height) * z
-        rw, rh = int(src.width * sc) + 1, int(src.height * sc) + 1
-        if getattr(self, "_cache", (None,))[0] != (rw, rh):
-            self._cache = ((rw, rh), src.resize((rw, rh), Image.BILINEAR))
-        drift = (rw - W) * 0.5 * (1 - in_out(prog(t, 0, self.dur)))
-        x0, y0 = int((rw - W) / 2 - drift / 2), int((rh - H) / 2)
-        shot = self._cache[1].crop((x0, y0, x0 + W, y0 + H))
-        fade = out_cubic(prog(t, 0, 0.5))
-        im.paste(Image.blend(Image.new("RGB", (W, H), self.DARK), shot, fade) if fade < 1 else shot)
+        self._shot(im, t, self.s.get("fx") or "drift")
         if not hasattr(self, "_shade"):           # dark gradient at the bottom so the words read on any picture
             g = Image.linear_gradient("L").resize((W, H)).point(lambda v: int(max(0, v - 90) * 1.6))
             self._shade = (Image.new("RGB", (W, H), self.DARK), g)
@@ -400,6 +413,120 @@ class Scene:
             fs = font("regular", 44)
             a = out_cubic(prog(t, 0.6 + n * 0.08, 0.5))
             d.text((MARGIN, y + 20 + (1 - a) * 16), sub[:110], font=fs, fill=mix(self.DARK, self.SUB, a))
+
+    # — the picture of a film scene, with its camera effect ("viral presets")
+    def _fit(self, z, dx=0.0, dy=0.0, src=None):
+        """The picture filling the frame at zoom z, shifted by dx/dy pixels."""
+        src = src or self.photo
+        sc = max(W / src.width, H / src.height) * z
+        rw, rh = int(src.width * sc) + 1, int(src.height * sc) + 1
+        key = (id(src), rw, rh)
+        if getattr(self, "_cache", (None,))[0] != key:
+            self._cache = (key, src.resize((rw, rh), Image.BILINEAR))
+        x0 = int(clamp((rw - W) / 2 - dx, 0, rw - W))
+        y0 = int(clamp((rh - H) / 2 - dy, 0, rh - H))
+        return self._cache[1].crop((x0, y0, x0 + W, y0 + H))
+
+    def _beat(self, t, every=0.6):
+        """0..1 pulse that jumps to 1 on every beat and fades quickly."""
+        return math.exp(-((t % every) / every) * 6)
+
+    def _shot(self, im, t, fx):
+        D = self.dur
+        fade = out_cubic(prog(t, 0, 0.45))
+        flash = 0.0
+        if fx == "zoom_punch":                                   # punch-in on every beat
+            b = self._beat(t)
+            shot = self._fit(1.04 + 0.14 * b + 0.04 * prog(t, 0, D))
+            flash = 0.35 * b if t > 0.3 else 0
+        elif fx == "pull_back":                                  # starts close, pulls back to reveal
+            shot = self._fit(1.0 + 0.9 * (1 - in_out(prog(t, 0, D * 0.75))))
+        elif fx == "spin_in":                                    # spins and grows in from the centre
+            p = out_back(prog(t, 0, 1.1), 1.2)
+            base = self._fit(1.0 + 0.04 * prog(t, 0, D))
+            k = max(0.05, min(1.0, 0.3 + 0.7 * p))
+            small = base.resize((max(1, int(W * k)), max(1, int(H * k))), Image.BILINEAR).rotate(
+                (1 - min(p, 1)) * 40, resample=Image.BILINEAR, expand=False, fillcolor=self.DARK)
+            shot = Image.new("RGB", (W, H), self.DARK)
+            shot.paste(small, ((W - small.width) // 2, (H - small.height) // 2))
+        elif fx == "glitch":                                     # colour split and torn lines on the beat
+            shot = self._fit(1.06 + 0.03 * prog(t, 0, D))
+            b = self._beat(t, 0.8)
+            if b > 0.35:
+                k = int(24 * b)
+                r, g, bl = shot.split()
+                shot = Image.merge("RGB", (ImageChops.offset(r, k, 0), g, ImageChops.offset(bl, -k, 0)))
+                n = int(t * 30)
+                for j in range(4):
+                    y = (n * 97 + j * 211) % (H - 60)
+                    band = shot.crop((0, y, W, y + 40 + j * 6))
+                    shot.paste(ImageChops.offset(band, ((n + j) % 5 - 2) * 30, 0), (0, y))
+        elif fx == "shake":                                      # handheld camera shake, settling down
+            a = 26 * (1 - 0.7 * prog(t, 0, D))
+            shot = self._fit(1.12, a * math.sin(t * 37), a * 0.7 * math.cos(t * 29))
+        elif fx == "polaroid":                                   # the photo drops in as a polaroid
+            p = out_back(prog(t, 0.1, 0.9), 1.1)
+            bg = Image.new("RGB", (W, H), self.BG if self.BG != self.DARK else (40, 40, 46))
+            if not hasattr(self, "_pola"):
+                ph = ImageOps.fit(self.photo, (760, 620), Image.BILINEAR)
+                card = Image.new("RGB", (820, 800), (250, 250, 246))
+                card.paste(ph, (30, 30))
+                self._pola = card
+            ang = -14 + 10 * min(p, 1)
+            card = self._pola.rotate(ang, resample=Image.BILINEAR, expand=True, fillcolor=bg.getpixel((0, 0)))
+            y = int(-card.height + (H / 2 - card.height / 2 + card.height) * min(p, 1.05)) - 40
+            bg.paste(card, ((W - card.width) // 2 + 260, y))
+            shot = bg
+        elif fx == "split_reveal":                               # three panels slide in, one after another
+            base = self._fit(1.05 + 0.04 * prog(t, 0, D))
+            shot = Image.new("RGB", (W, H), self.DARK)
+            pw = W // 3
+            for k in range(3):
+                p = out_cubic(prog(t, 0.15 + k * 0.22, 0.6))
+                dy = int((1 - p) * H * (1 if k % 2 else -1))
+                shot.paste(base.crop((k * pw, 0, (k + 1) * pw if k < 2 else W, H)), (k * pw, dy))
+        elif fx == "vhs":                                        # retro tape look with a date stamp
+            shot = self._fit(1.04, 3 * math.sin(t * 11), 0)
+            shot = Image.blend(shot, Image.new("RGB", (W, H), (60, 20, 70)), 0.18)
+            if not hasattr(self, "_lines"):
+                ln = Image.new("L", (W, H), 0)
+                dd = ImageDraw.Draw(ln)
+                for y in range(0, H, 6):
+                    dd.line((0, y, W, y), fill=60)
+                self._lines = ln
+            shot.paste((0, 0, 0), (0, 0), self._lines)
+            dd = ImageDraw.Draw(shot)
+            fnt = font("bold", 46)
+            dd.text((80, 70), "PLAY ▶" if int(t * 2) % 2 == 0 else "PLAY", font=fnt, fill=(240, 240, 240))
+            dd.text((W - 520, H - 130), "JAN 01 1999  12:00", font=fnt, fill=(240, 240, 240))
+        elif fx == "flash_cuts":                                 # cut to a closer framing on every beat
+            beat = int(t / 0.6)
+            frames = [(1.02, 0, 0), (1.25, -220, -80), (1.12, 200, 60), (1.4, 0, -120)]
+            z, dx, dy = frames[beat % len(frames)]
+            shot = self._fit(z, dx, dy)
+            flash = 0.5 * self._beat(t) if t > 0.3 else 0
+        elif fx == "duotone":                                    # two-colour poster look, slow push
+            if not hasattr(self, "_duo"):
+                self._duo = ImageOps.colorize(ImageOps.grayscale(self.photo), self.DARK, self.ACC)
+            shot = self._fit(1.03 + 0.07 * in_out(prog(t, 0, D)), src=self._duo)
+        elif fx == "countdown":                                  # 3 · 2 · 1, then the reveal
+            shot = self._fit(1.0 + 0.08 * in_out(prog(t, 0, D)))
+            if t < 2.4:
+                shot = Image.blend(shot, Image.new("RGB", (W, H), self.DARK), 0.7)
+                dd = ImageDraw.Draw(shot)
+                n = 3 - int(t / 0.8)
+                p = out_back(prog(t % 0.8, 0, 0.35), 1.4)
+                fnt = font("bold", int(420 * max(p, 0.1)))
+                txt = str(n)
+                dd.text(((W - dd.textlength(txt, font=fnt)) / 2, H / 2 - fnt.size * 0.62), txt, font=fnt, fill=self.ACC)
+            elif t < 2.55:
+                flash = 0.8
+        else:                                                    # "drift": slow push-in and drift (default)
+            p = in_out(prog(t, 0, D))
+            shot = self._fit(1.0 + 0.08 * p, 120 * (1 - p) - 60, 0)
+        if flash > 0:
+            shot = Image.blend(shot, Image.new("RGB", (W, H), (255, 255, 255)), min(flash, 0.9))
+        im.paste(Image.blend(Image.new("RGB", (W, H), self.DARK), shot, fade) if fade < 1 else shot)
 
     # — heading shared by content scenes: wipes in from the left
     def _heading(self, im, d, t, max_w=W - 2 * MARGIN):
