@@ -50,6 +50,20 @@ def _model_cached():
     return (ROOT / "models" / "hf" / "hub" / ("models--" + MODEL.replace("/", "--"))).exists()
 
 
+def model_path():
+    """The downloaded model's folder on disk (models/hf/hub/…/snapshots/<rev>). Loading from the folder needs no
+    Hugging Face lookup, so it also works offline and with any huggingface-hub version. Falls back to the name."""
+    repo = ROOT / "models" / "hf" / "hub" / ("models--" + MODEL.replace("/", "--"))
+    try:
+        rev = (repo / "refs" / "main").read_text().strip()
+        if (repo / "snapshots" / rev / "model_index.json").exists():
+            return str(repo / "snapshots" / rev)
+    except OSError:
+        pass
+    snaps = sorted((repo / "snapshots").glob("*/model_index.json")) if (repo / "snapshots").exists() else []
+    return str(snaps[-1].parent) if snaps else MODEL
+
+
 def status():
     if not _python():
         return {"available": False, "info": "Picture creator: run install_once.bat images (about 3 GB, one time)"}
@@ -59,11 +73,14 @@ def status():
 
 
 LOG = ROOT / "models" / "logs" / "picture_creator.log"
+# offline and private: no usage statistics from OpenVINO (it would send to Google Analytics), Hugging Face or others
+PRIVATE_ENV = {"OPENVINO_TELEMETRY_OPTOUT": "1", "HF_HUB_DISABLE_TELEMETRY": "1", "DO_NOT_TRACK": "1",
+               "HF_HUB_OFFLINE": "1", "PYTHONIOENCODING": "utf-8"}
 
 
 def _run_worker(args, progress=lambda done, total: None, timeout=None):
     """Runs the worker in .venv-image; keeps its whole output in models/logs/picture_creator.log."""
-    env = {**os.environ, "HF_HUB_OFFLINE": "1", "PYTHONIOENCODING": "utf-8"}
+    env = {**os.environ, **PRIVATE_ENV}
     proc = subprocess.Popen([_python() or sys.executable, str(WORKER), *args], stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace", env=env)
     log = []
@@ -98,7 +115,7 @@ class _Server:
         self.timer = None
 
     def _start(self):
-        env = {**os.environ, "HF_HUB_OFFLINE": "1", "PYTHONIOENCODING": "utf-8"}
+        env = {**os.environ, **PRIVATE_ENV}
         self.proc = subprocess.Popen([_python() or sys.executable, str(WORKER), "--serve"], stdin=subprocess.PIPE,
                                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8",
                                      errors="replace", env=env, bufsize=1)
@@ -165,7 +182,7 @@ def generate(prompts, aspect="16:9", seed=None, steps=4, progress=lambda done, t
     with tempfile.TemporaryDirectory() as td:
         outs = [str(Path(td) / f"img_{i}.png") for i in range(len(prompts))]
         CACHE.mkdir(parents=True, exist_ok=True)
-        ok, log = SERVER.job({"model": MODEL, "width": dw, "height": dh, "steps": steps, "seed": seed,
+        ok, log = SERVER.job({"model": model_path(), "width": dw, "height": dh, "steps": steps, "seed": seed,
                               "cache": str(CACHE), "items": [{"prompt": p, "out": o} for p, o in zip(prompts, outs)]},
                              progress)
         if not ok:
@@ -189,7 +206,7 @@ def check():
     with SERVER.lock:                      # free the memory of a running picture creator before testing
         SERVER.stop()
     CACHE.mkdir(parents=True, exist_ok=True)
-    code, log = _run_worker(["--check", MODEL, str(CACHE)], timeout=1800)
+    code, log = _run_worker(["--check", model_path(), str(CACHE)], timeout=1800)
     lines = [l.rstrip() for l in log if l.startswith(("CHECK", "INFO", "WARN", "ERROR"))] or [l.rstrip() for l in log[-15:]]
     if code != 0:
         lines += ["", "Last lines:"] + [l.rstrip() for l in log[-8:]]

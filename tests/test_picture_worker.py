@@ -14,17 +14,24 @@ from PIL import Image  # noqa: E402
 from app.ai import image_worker, images  # noqa: E402
 
 
-def fake_stack(monkeypatch, gpu_compile_fails=False, gpu_draw_fails=False, devices=("CPU", "GPU")):
+def fake_stack(monkeypatch, gpu_compile_fails=False, gpu_draw_fails=False, devices=("CPU", "GPU"), lcm_unet=False):
     calls = []
 
     class Pipe:
+        kind = "sd"
         def __init__(self):
             self.device = "CPU"
 
         @classmethod
         def from_pretrained(cls, model, **kw):
             calls.append(("load", kw.get("compile")))
-            return cls()
+            p = cls()
+            names = ["sample", "timestep", "encoder_hidden_states"] + (["timestep_cond"] if lcm_unet else [])
+            p.unet = types.SimpleNamespace(
+                config=types.SimpleNamespace(time_cond_proj_dim=None),
+                model=types.SimpleNamespace(inputs=[types.SimpleNamespace(get_names=lambda n=n: {n}) for n in names]),
+                register_to_config=lambda **kw: None)
+            return p
 
         def to(self, dev):
             self.device = dev
@@ -39,12 +46,17 @@ def fake_stack(monkeypatch, gpu_compile_fails=False, gpu_draw_fails=False, devic
 
         def __call__(self, **kw):
             calls.append(("draw", self.device))
+            calls.append(("guidance", type(self).kind, kw["guidance_scale"]))
             if self.device == "GPU" and gpu_draw_fails:
                 raise RuntimeError("GPU hang")
             return types.SimpleNamespace(images=[Image.new("RGB", (kw["width"], kw["height"]), "red")])
 
+    class LcmPipe(Pipe):
+        kind = "lcm"
+
     oi = types.ModuleType("optimum.intel")
-    oi.OVLatentConsistencyModelPipeline = Pipe
+    oi.OVStableDiffusionPipeline = Pipe
+    oi.OVLatentConsistencyModelPipeline = LcmPipe
     ov = types.ModuleType("openvino")
     ov.Core = lambda: types.SimpleNamespace(available_devices=list(devices))
     torch = types.ModuleType("torch")
@@ -81,7 +93,7 @@ def test_falls_back_to_cpu_when_drawing_on_the_graphics_card_fails(monkeypatch, 
     calls = fake_stack(monkeypatch, gpu_draw_fails=True)
     image_worker.run(_job(tmp_path, 1))
     assert "switching to CPU" in capsys.readouterr().out
-    assert calls[-1] == ("draw", "CPU") and (tmp_path / "o0.png").exists()
+    assert [c for c in calls if c[0] == "draw"][-1] == ("draw", "CPU") and (tmp_path / "o0.png").exists()
 
 
 def test_check_prints_a_report(monkeypatch, capsys):
@@ -201,6 +213,7 @@ def test_serve_mode_reuses_the_model_and_only_reshapes(monkeypatch, tmp_path):
     job["width"], job["height"] = 128, 64
     image_worker.run(job, state)                            # new size: re-shape only
     assert [c for c in calls if c[0] == "load"] == [("load", False)]
+    assert ("guidance", "sd", 1.5) in calls                  # plain SD pipeline for this model, gentle guidance
     assert calls.count(("compile", "GPU")) == 2 and state["size"] == (128, 64)
 
 
@@ -239,3 +252,48 @@ def test_missing_time_cond_proj_dim_is_filled_in_from_the_model(capsys):
     image_worker.fix_lcm(pipe)                          # a model that has it keeps its own value
     assert pipe.unet.config.time_cond_proj_dim == 512
     image_worker.fix_lcm(types.SimpleNamespace())       # pipelines without a UNet are left alone
+
+
+def test_lcm_unet_with_guidance_input_uses_the_lcm_pipeline(monkeypatch, tmp_path):
+    calls = fake_stack(monkeypatch, lcm_unet=True)
+    image_worker.run(_job(tmp_path, 1))
+    assert ("guidance", "lcm", 8.0) in calls
+
+
+def test_model_without_guidance_input_keeps_time_cond_proj_dim_empty():
+    unet = types.SimpleNamespace(config=types.SimpleNamespace(time_cond_proj_dim=None),
+                                 model=types.SimpleNamespace(inputs=[]), register_to_config=lambda **kw: 1 / 0)
+    image_worker.fix_lcm(types.SimpleNamespace(unet=unet))       # must not set 256 (the real model has no input)
+    assert unet.config.time_cond_proj_dim is None
+
+
+def test_compat_patches_the_module_that_transformers_put_in_place(monkeypatch):
+    """transformers 5 can replace its module in sys.modules while loading CLIPImageProcessor."""
+    old, new = types.ModuleType("transformers"), types.ModuleType("transformers")
+
+    class Lazy(types.ModuleType):
+        def __getattr__(self, name):
+            if name == "CLIPImageProcessor":
+                sys.modules["transformers"] = new          # what the real lazy module does
+                return "Proc"
+            raise AttributeError(name)
+    old.__class__ = Lazy
+    monkeypatch.setitem(sys.modules, "transformers", old)
+    image_worker.compat()
+    assert sys.modules["transformers"].CLIPFeatureExtractor == "Proc" and old.CLIPFeatureExtractor == "Proc"
+
+
+def test_model_is_opened_from_its_folder(monkeypatch, tmp_path):
+    repo = tmp_path / "models" / "hf" / "hub" / ("models--" + images.MODEL.replace("/", "--"))
+    (repo / "snapshots" / "abc").mkdir(parents=True)
+    (repo / "snapshots" / "abc" / "model_index.json").write_text("{}")
+    (repo / "refs").mkdir()
+    (repo / "refs" / "main").write_text("abc")
+    monkeypatch.setattr(images, "ROOT", tmp_path)
+    assert images.model_path() == str(repo / "snapshots" / "abc")
+
+
+def test_picture_creator_sends_no_usage_statistics():
+    assert images.PRIVATE_ENV["OPENVINO_TELEMETRY_OPTOUT"] == "1" and images.PRIVATE_ENV["HF_HUB_DISABLE_TELEMETRY"] == "1"
+    import os
+    assert os.environ.get("OPENVINO_TELEMETRY_OPTOUT") == "1"      # set by importing the worker module
