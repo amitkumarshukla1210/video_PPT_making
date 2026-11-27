@@ -34,6 +34,19 @@ async function waitJob(box) {
   }
 }
 
+// Start a tool job. If an earlier one is still running (e.g. the picture model is still loading), show its
+// progress, wait for it to finish, then start this one — instead of an error.
+async function startJob(path, opts, box) {
+  try {
+    return await api(path, opts);
+  } catch (e) {
+    if (!/still working/i.test(e.message)) throw e;
+    toast("Still busy with your previous request — waiting for it to finish, then yours starts");
+    try { await waitJob(box); } catch (err) { /* the earlier job failed; start ours anyway */ }
+    return api(path, opts);
+  }
+}
+
 function mediaRow(kind, f) {
   const player = kind === "videos" ? `<video controls preload="metadata" src="${f.url}"></video>`
     : kind === "audio" ? `<audio controls preload="none" src="${f.url}"></audio>` : "";
@@ -59,9 +72,9 @@ async function makeClip() {
   if (!pickedImage) return toast("Choose a picture first", true);
   $("#clipGo").disabled = true;
   try {
-    await api("/api/tools/clip", { method: "POST", json: { image: pickedImage, title: $("#clipTitle").value,
+    await startJob("/api/tools/clip", { method: "POST", json: { image: pickedImage, title: $("#clipTitle").value,
       subtitle: $("#clipSub").value, look: $("#clipLook").value, seconds: +$("#clipSecs").value, music: $("#clipMusic").value,
-      fx: $("#clipFx").value } });
+      fx: $("#clipFx").value } }, $("#clipProg"));
     const r = await waitJob($("#clipProg"));
     await refresh(); renderMedia();
     $("#clipResult").innerHTML = `<video controls autoplay src="/media/videos/${r.video}"></video>
@@ -79,8 +92,8 @@ async function makeImages() {
   if (!st.images.available) return toast(st.images.info, true);
   $("#imgGo").disabled = true;
   try {
-    await api("/api/tools/image", { method: "POST", json: { prompt: $("#imgPrompt").value, style: $("#imgStyle").value,
-      aspect: $("#imgAspect").value, n: +$("#imgN").value } });
+    await startJob("/api/tools/image", { method: "POST", json: { prompt: $("#imgPrompt").value, style: $("#imgStyle").value,
+      aspect: $("#imgAspect").value, n: +$("#imgN").value } }, $("#imgProg"));
     await waitJob($("#imgProg"));
     await refresh(); renderMedia();
     toast("Pictures ready — they are in My pictures below");
@@ -196,7 +209,7 @@ async function init() {
   $("#imgCheck").onclick = async () => {
     $("#imgCheck").disabled = true;
     try {
-      await api("/api/tools/image/check", { method: "POST" });
+      await startJob("/api/tools/image/check", { method: "POST" }, $("#imgProg"));
       const r = await waitJob($("#imgProg"));
       $("#imgReport pre").textContent = r.report;
       $("#imgReport").classList.remove("hidden");
@@ -246,11 +259,19 @@ async function init() {
         await api(`/api/tools/${k}/${id}`, { method: "DELETE" }); await refresh(); renderRefs(k); renderRefChips();
       } else if (d.pic) {
         const [k, id] = d.pic.split("/");
-        await api(`/api/tools/${k}/${id}/picture`, { method: "POST" });
+        await startJob(`/api/tools/${k}/${id}/picture`, { method: "POST" }, $(`#${k}Prog`));
         await waitJob($(`#${k}Prog`)); await refresh(); renderRefs(k); renderMedia();
       }
     } catch (err) { toast(err.message, true); }
   });
+  // a job still running from before (page reloaded while the picture model was loading): show its progress
+  const running = await api("/api/tools/job").catch(() => ({}));
+  if (running.state === "running") {
+    const box = $(`#t-${document.body.dataset.tool} .progress`) || $("#imgProg");
+    toast("A picture job from before is still running — showing its progress");
+    waitJob(box).then(async () => { await refresh(); renderMedia(); renderRefs("characters"); renderRefs("worlds"); })
+      .catch((e) => toast(e.message, true));
+  }
   document.body.dataset.ready = "true";
 }
 init().catch((e) => toast(e.message, true));

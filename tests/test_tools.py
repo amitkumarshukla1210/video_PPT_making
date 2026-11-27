@@ -135,3 +135,11 @@ def test_tools_follow_the_film_order(client):
     assert order == sorted(order)
     side = [html.index(f'href="/tools/{t}"') for t in ("character", "image", "world", "audio", "video")]
     assert side == sorted(side)
+
+
+def test_busy_tool_answers_in_plain_json(client, monkeypatch):
+    from app import jobs
+    monkeypatch.setattr(jobs, "status", lambda key: {"state": "running"})
+    monkeypatch.setattr(images, "status", lambda: {"available": True, "info": "ok"})
+    r = client.post("/api/tools/image", json={"prompt": "a cat"})
+    assert r.status_code == 409 and r.is_json and "still working" in r.get_json()["error"]

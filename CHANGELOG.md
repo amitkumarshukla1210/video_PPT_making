@@ -6,6 +6,13 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.9.4 — 2026-11-27
+- Fix: clicking Create (or Check, Create portrait, Make the clip) while an earlier picture job was still running
+  showed raw web code ("409 Conflict"). Now the page shows the running job's progress, waits for it to finish, then
+  starts your request automatically.
+- If you reload the Tools page while a job is running, it shows that job's progress.
+- All "busy" and "not allowed" answers are plain messages now, never web code.
+
 ## 1.9.3 — 2026-11-27
 - **The picture creator is much faster after the first picture.**
   - It used to load and prepare the model for the graphics card on every click (1–2 minutes each time).

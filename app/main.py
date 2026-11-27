@@ -62,6 +62,9 @@ def _proj(pid):
 
 @app.errorhandler(400)
 @app.errorhandler(404)
+@app.errorhandler(405)
+@app.errorhandler(409)
+@app.errorhandler(413)
 @app.errorhandler(500)
 def _err(e):
     return jsonify(error=getattr(e, "description", str(e))), getattr(e, "code", 500)
