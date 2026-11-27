@@ -65,14 +65,28 @@ def fix_lcm(pipe):
 # guidance per pipeline kind: LCM UNets with a guidance input were distilled for ~8; LCM weights exported as a
 # plain Stable Diffusion UNet (no guidance input, e.g. rupeshs/LCM-dreamshaper-v7-openvino) need ~1.5 —
 # higher values burn the colours (checked on the real model: 1.5 clean, 2.5 over-saturated).
-GUIDANCE = {"lcm": 8.0, "sd": 1.5}
+# SDXL-Lightning ("xl") was distilled without guidance: 0 (no negative prompt pass, twice as fast).
+GUIDANCE = {"lcm": 8.0, "sd": 1.5, "xl": 0.0}
+
+
+def is_xl(model):
+    """Stable Diffusion XL model folder? (model_index.json names the pipeline class)."""
+    try:
+        with open(os.path.join(model, "model_index.json"), encoding="utf-8") as f:
+            return "XL" in json.load(f).get("_class_name", "")
+    except (OSError, ValueError):
+        return False
 
 
 def _pipeline(model, cache):
-    """The right pipeline for the model: the LCM pipeline only when the UNet takes `timestep_cond`."""
+    """The right pipeline for the model: XL for SDXL models; the LCM pipeline only when the UNet takes
+    `timestep_cond`; otherwise plain Stable Diffusion."""
     from optimum.intel import OVStableDiffusionPipeline, OVLatentConsistencyModelPipeline
     cfg = {"CACHE_DIR": cache or ""}
     compat()                                         # again, after optimum/diffusers were imported
+    if is_xl(model):
+        from optimum.intel import OVStableDiffusionXLPipeline
+        return OVStableDiffusionXLPipeline.from_pretrained(model, ov_config=cfg, compile=False), "xl"
     pipe = OVStableDiffusionPipeline.from_pretrained(model, ov_config=cfg, compile=False)
     if "timestep_cond" in unet_inputs(pipe):
         pipe = OVLatentConsistencyModelPipeline.from_pretrained(model, ov_config=cfg, compile=False)
@@ -96,7 +110,8 @@ def load(model, width, height, prefer_gpu=True, cache=""):
             pipe.dtc_kind = kind
             if dev != "CPU":
                 pipe.to(dev)
-            pipe.reshape(batch_size=1, height=height, width=width, num_images_per_prompt=1)
+            if kind != "xl":     # XL: static reshape assumes a guidance batch of 2; it runs fine with any size
+                pipe.reshape(batch_size=1, height=height, width=width, num_images_per_prompt=1)
             pipe.compile()
             say(f"INFO model ready on {dev} in {time.time() - t:.0f}s ({kind} pipeline)")
             return pipe, dev
@@ -110,8 +125,9 @@ def make(pipe, prompt, width, height, steps, seed):
     import torch
     gen = torch.Generator().manual_seed(int(seed)) if seed is not None else None
     guidance = GUIDANCE.get(getattr(pipe, "dtc_kind", "sd"), 1.5)
-    return pipe(prompt=prompt + STYLE, negative_prompt=NEGATIVE, width=width, height=height,
-                num_inference_steps=int(steps or 4), guidance_scale=guidance, generator=gen).images[0]
+    extra = {"negative_prompt": NEGATIVE} if guidance > 1 else {}
+    return pipe(prompt=prompt + STYLE, width=width, height=height, num_inference_steps=int(steps or 4),
+                guidance_scale=guidance, generator=gen, **extra).images[0]
 
 
 def run(job, state=None):
@@ -124,7 +140,7 @@ def run(job, state=None):
     if state.get("pipe") is None or state.get("model") != job["model"]:
         state["pipe"], state["dev"] = load(job["model"], w, h, cache=cache)
         state.update(model=job["model"], size=(w, h))
-    elif state.get("size") != (w, h):
+    elif state.get("size") != (w, h) and getattr(state["pipe"], "dtc_kind", "") != "xl":
         t = time.time()
         state["pipe"].reshape(batch_size=1, height=h, width=w, num_images_per_prompt=1)
         state["pipe"].compile()

@@ -167,7 +167,7 @@ def tools_state():
                    styles={k: v[0] for k, v in tools.STYLES.items()}, looks={k: v["label"] for k, v in motion.LOOKS.items()},
                    moods={k: v["label"] for k, v in library.MOODS.items()}, sfx=library.SFX, engines=tts.status(),
                    default_engine=tts.default_engine(), images=images.status(),
-                   characters=tools.refs("characters"), worlds=tools.refs("worlds"),
+                   characters=tools.refs_with_counts("characters"), worlds=tools.refs_with_counts("worlds"),
                    media={k: tools.media_list(k) for k in tools.KINDS})
 
 
@@ -183,10 +183,78 @@ def media_file(kind, name):
 @app.delete("/api/tools/media/<kind>/<name>")
 def media_delete(kind, name):
     try:
-        tools.media_path(kind, name).unlink()
+        tools.delete_media(kind, name)
     except (ValueError, FileNotFoundError):
         abort(404)
     return jsonify(ok=True)
+
+
+@app.put("/api/tools/media/images/<name>/tags")
+def media_tags(name):
+    """Which characters / places a picture shows (so it can be found and reused)."""
+    try:
+        tools.media_path("images", name)
+    except (ValueError, FileNotFoundError):
+        abort(404)
+    tags = [str(t) for t in (request.json or {}).get("tags", [])][:10]
+    return jsonify(tools.set_picture(name, tags=tags))
+
+
+@app.post("/api/tools/<kind>/<rid>/upload")
+def ref_upload(kind, rid):
+    """Your own pictures of a character / place (one or many at once): saved in My pictures, tagged with its @Name;
+    the first becomes the main picture when it has none yet."""
+    if kind not in tools.REF_KINDS:
+        abort(404)
+    item = next((i for i in tools.refs(kind) if i["id"] == rid), None) or abort(404)
+    files = request.files.getlist("files")
+    if not files:
+        abort(400, "Choose one or more pictures")
+    names = []
+    try:
+        for f in files[:20]:
+            names.append(tools.save_upload(f, tags=[item["tag"]]))
+    except ValueError as e:
+        abort(400, str(e))
+    if not item.get("image"):
+        tools.set_ref_image(kind, rid, names[0])
+    return jsonify(images=names)
+
+
+@app.post("/api/tools/<kind>/<rid>/portrait")
+def ref_portrait(kind, rid):
+    """Use one of My pictures as the character's portrait / the world's view."""
+    if kind not in tools.REF_KINDS:
+        abort(404)
+    item = next((i for i in tools.refs(kind) if i["id"] == rid), None) or abort(404)
+    name = str((request.json or {}).get("image") or "")
+    try:
+        tools.media_path("images", name)
+    except (ValueError, FileNotFoundError):
+        abort(400, "Choose one of your pictures")
+    tools.set_ref_image(kind, rid, name)
+    tags = tools.picture_info(name).get("tags", [])
+    if item["tag"] not in tags:
+        tools.set_picture(name, tags=tags + [item["tag"]])
+    return jsonify(ok=True)
+
+
+@app.post("/api/projects/<pid>/slides/<sid>/from_media")
+def slide_from_media(pid, sid):
+    """Use a picture from My media (e.g. a character picture) for a scene of a project."""
+    proj = _proj(pid)
+    s = next((x for x in proj["slides"] if x["id"] == sid), None) or abort(404)
+    name = str((request.json or {}).get("name") or "")
+    try:
+        src = tools.media_path("images", name)
+    except (ValueError, FileNotFoundError):
+        abort(400, "Picture not found")
+    import shutil
+    dst = f"uploads/media_{uuid.uuid4().hex[:6]}{src.suffix.lower()}"
+    shutil.copyfile(src, P.folder(pid) / dst)
+    s["image"] = dst
+    P.save(proj)
+    return jsonify(proj)
 
 
 @app.get("/api/tools/job")
@@ -212,7 +280,18 @@ def tool_image():
         abort(400, images.status()["info"])
     return _tool_job(lambda progress, cancelled: tools.create_images(
         prompt, str(b.get("style") or "none"), str(b.get("aspect") or "16:9"), b.get("n") or 1,
-        lambda f, m: progress("Creating pictures", f, m)))
+        lambda f, m: progress("Creating pictures", f, m), quality=b.get("quality") or None))
+
+
+@app.post("/api/tools/image/download_hd")
+def tool_image_download_hd():
+    """Download the film-quality picture model (one time, about 4.8 GB) as a background job."""
+    from .ai import images
+    if images.hd_ready():
+        return jsonify(ok=True, done=True)
+    gb = images.HD_SIZE_GB
+    return _tool_job(lambda progress, cancelled: images.download_hd(
+        lambda d, t: progress("Downloading film quality", d / t, f"{d / 1e9:.1f} of {gb} GB — one time")))
 
 
 @app.post("/api/tools/image/check")
@@ -310,7 +389,7 @@ def ref_picture(kind, rid):
 
     def work(progress, cancelled):
         r = tools.create_images(f"{item['description']}, {style}", "none", "16:9", 1,
-                                lambda f, m: progress("Creating the picture", f, m), prefix=kind[:-1])
+                                lambda f, m: progress("Creating the picture", f, m), tags=[item["tag"]])
         tools.set_ref_image(kind, rid, r["images"][0])
         return {"image": r["images"][0]}
     return _tool_job(work)

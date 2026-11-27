@@ -111,3 +111,7 @@
 #useBox label { margin-top: 10px; }
 .use-thumb { width: 100%; aspect-ratio: 16 / 9; border-radius: 10px; margin: 8px 0 4px; background: #000; }
 #useBox .modal-box video { max-height: none; }
+
+.picker-box { width: min(980px, 100%); }
+.scene-top .btn + .btn { margin-left: 6px; }
+.scene-top [data-mypic] { margin-left: auto; }

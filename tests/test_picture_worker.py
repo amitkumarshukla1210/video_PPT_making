@@ -57,6 +57,13 @@ def fake_stack(monkeypatch, gpu_compile_fails=False, gpu_draw_fails=False, devic
     oi = types.ModuleType("optimum.intel")
     oi.OVStableDiffusionPipeline = Pipe
     oi.OVLatentConsistencyModelPipeline = LcmPipe
+
+    class XlPipe(Pipe):
+        kind = "xl"
+
+        def reshape(self, **kw):                          # the real XL pipeline breaks on a static reshape
+            raise AssertionError("XL must not be reshaped")
+    oi.OVStableDiffusionXLPipeline = XlPipe
     ov = types.ModuleType("openvino")
     ov.Core = lambda: types.SimpleNamespace(available_devices=list(devices))
     torch = types.ModuleType("torch")
@@ -145,6 +152,7 @@ def _server(monkeypatch, tmp_path, code):
     monkeypatch.setattr(images, "_python", lambda: sys.executable)
     monkeypatch.setattr(images, "LOG", tmp_path / "logs" / "picture_creator.log")
     monkeypatch.setattr(images, "CACHE", tmp_path / "ov_cache")
+    monkeypatch.setattr(images, "hd_ready", lambda: False)
     srv = images._Server()
     monkeypatch.setattr(images, "SERVER", srv)
     return srv
@@ -198,7 +206,7 @@ def test_draw_sizes_are_multiples_of_64_and_pictures_keep_their_shape(monkeypatc
     import io
     try:
         for aspect in ("16:9", "9:16", "1:1"):
-            png = images.generate(["x"], aspect)[0]
+            png = images.generate(["x"], aspect, quality="fast")[0]
             assert Image.open(io.BytesIO(png)).size == images.SIZES[aspect]
     finally:
         srv.stop()
@@ -297,3 +305,56 @@ def test_picture_creator_sends_no_usage_statistics():
     assert images.PRIVATE_ENV["OPENVINO_TELEMETRY_OPTOUT"] == "1" and images.PRIVATE_ENV["HF_HUB_DISABLE_TELEMETRY"] == "1"
     import os
     assert os.environ.get("OPENVINO_TELEMETRY_OPTOUT") == "1"      # set by importing the worker module
+
+
+def _xl_folder(tmp_path):
+    d = tmp_path / "xl"
+    d.mkdir()
+    (d / "model_index.json").write_text(json.dumps({"_class_name": "StableDiffusionXLPipeline"}))
+    return str(d)
+
+
+def test_film_quality_model_uses_the_xl_pipeline_without_guidance(monkeypatch, tmp_path):
+    calls = fake_stack(monkeypatch)
+    job = _job(tmp_path, 1)
+    job["model"], job["width"], job["height"] = _xl_folder(tmp_path), 1024, 576
+    state = {}
+    image_worker.run(job, state)
+    assert ("guidance", "xl", 0.0) in calls
+    job["width"], job["height"] = 576, 1024                 # another shape: no reshape, draws at once
+    image_worker.run(job, state)
+    assert len([c for c in calls if c[0] == "load"]) == 1
+    assert Image.open(job["items"][0]["out"]).size == (576, 1024)
+    assert not image_worker.is_xl(str(tmp_path))
+
+
+def test_film_quality_is_used_when_downloaded(monkeypatch, tmp_path):
+    monkeypatch.setattr(images, "ROOT", tmp_path)
+    assert not images.hd_ready() and images.pick() == "fast" and images.pick("hd") == "fast"
+    repo = images._repo(images.HD_MODEL) / "snapshots" / "r1"
+    repo.mkdir(parents=True)
+    assert not images.hd_ready()                            # download not finished yet
+    (repo / "model_index.json").write_text("{}")
+    assert images.hd_ready() and images.pick() == "hd" and images.pick("fast") == "fast"
+
+
+def test_film_quality_pictures_are_1024_wide(monkeypatch, tmp_path):
+    srv = _server(monkeypatch, tmp_path, GOOD_WORKER)
+    monkeypatch.setattr(images, "hd_ready", lambda: True)
+    import io
+    try:
+        png = images.generate(["x"], "16:9")[0]
+        assert Image.open(io.BytesIO(png)).size == (1024, 576)
+        assert Image.open(io.BytesIO(images.generate(["x"], "16:9", quality="fast")[0])).size == (768, 432)
+    finally:
+        srv.stop()
+
+
+def test_prompt_keeps_the_subject_first_and_the_quality_words_in_reach():
+    from app import tools
+    p = tools.build_prompt("Ram by the river", "cinematic")
+    assert p.startswith("Ram by the river, cinematic film still")
+    assert p.count("cinematic film still") == 1 and "photorealistic" in p
+    long = tools.build_prompt(" ".join(f"w{i}" for i in range(200)), "photo")
+    assert len(long.split(", ")[0].split()) == tools.SUBJECT_WORDS and long.endswith("sharp focus, cinematic film still, photorealistic, detailed face")
+    assert tools.build_prompt("a cat", "anime") == "a cat, anime illustration, clean lines, vibrant colours"

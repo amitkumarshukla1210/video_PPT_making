@@ -124,6 +124,7 @@ function renderScenes() {
       <div class="scene-body">
         <div class="scene-top"><span class="badge">${s.kind === "content" ? "Scene " + n : KIND_LABEL[s.kind]}</span>
           <span class="muted secs">${Math.round(seconds(s.script || ""))} s</span>
+          <button class="btn btn-outline small" data-mypic="${i}" title="Use a picture from My pictures (e.g. a character)">🖼 My pictures</button>
           ${s.kind === "content" ? `<button class="btn btn-outline small" data-del="${i}" title="Remove this scene">✕</button>` : ""}</div>
         <input data-k="title" value="${esc(s.title)}" aria-label="On-screen title">
         <textarea data-k="script" rows="3" aria-label="Narration">${esc(s.script)}</textarea>
@@ -148,6 +149,35 @@ async function aiJob(path, body, label) {
     renderScenes();
     toast("Done");
   } catch (e) { toast(e.message, true); } finally { $("#status2").textContent = ""; }
+}
+
+// ---------- My pictures picker (pictures made in Tools, e.g. of @Shurpanakha) ----------
+let pick = { scene: null, tag: "", media: null };
+async function openPicker(i) {
+  pick.scene = i;
+  try { pick.media = await api("/api/tools/state"); } catch (e) { return toast(e.message, true); }
+  renderPicker();
+  $("#picker").classList.remove("hidden");
+}
+function renderPicker() {
+  const imgs = pick.media.media.images;
+  const tags = [...pick.media.characters, ...pick.media.worlds].map((r) => r.tag);
+  const shown = imgs.filter((f) => !pick.tag || f.tags.includes(pick.tag));
+  $("#pickerFilters").innerHTML = ["", ...tags].map((t) => `<button class="chip small${pick.tag === t ? " on" : ""}" data-ptag="${esc(t)}">${esc(t || "All")}
+    <small>${t ? imgs.filter((f) => f.tags.includes(t)).length : imgs.length}</small></button>`).join("");
+  $("#pickerGrid").innerHTML = shown.map((f) => `<button class="pick" data-pname="${esc(f.name)}" title="${esc(f.tags.join(" ") || f.name)}">
+    <img src="${f.url}" alt="" loading="lazy">${f.tags.length ? `<span class="pick-tag">${esc(f.tags.join(" "))}</span>` : ""}</button>`).join("")
+    || '<p class="muted">No pictures yet — make them in <a href="/tools/image">Tools › Image</a>.</p>';
+}
+async function usePicture(name) {
+  const s = proj.slides[pick.scene];
+  try {
+    await saveScript();
+    proj = await api(`/api/projects/${proj.id}/slides/${s.id}/from_media`, { method: "POST", json: { name } });
+    $("#picker").classList.add("hidden");
+    renderScenes();
+    toast("Picture added to the scene");
+  } catch (e) { toast(e.message, true); }
 }
 
 // ---------- 3 · voice ----------
@@ -242,10 +272,18 @@ async function init() {
     scheduleSave();
   });
   $("#sceneList").addEventListener("click", async (e) => {
+    if (e.target.dataset.mypic !== undefined) return openPicker(+e.target.dataset.mypic);
     const i = e.target.dataset.del; if (i === undefined) return;
     if (!confirm("Remove this scene?")) return;
     proj.slides.splice(+i, 1);
     await saveScript(); renderScenes();
+  });
+  $("#picker").addEventListener("click", (e) => {
+    const t = e.target.closest("[data-ptag], [data-pname]");
+    if (e.target.id === "picker" || e.target.id === "pickerClose") return $("#picker").classList.add("hidden");
+    if (!t) return;
+    if (t.dataset.pname) return usePicture(t.dataset.pname);
+    pick.tag = t.dataset.ptag; renderPicker();
   });
   $("#rewrite").onclick = () => aiJob("ai_script", { overwrite: true, language: proj.language }, "The local AI is rewriting the narration…");
   $("#morePics").onclick = () => aiJob("pictures", {}, "Creating pictures…");
