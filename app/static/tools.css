@@ -64,3 +64,7 @@
 .view-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 10px 18px 16px; color: #dfe5ee; font-size: 13px; }
 .view-bar #viewText { flex: 1; min-width: 200px; opacity: .85; }
 .view-bar .tag { background: rgba(255,255,255,.15); color: #fff; }
+
+.hd-offer { display: grid; gap: 6px; padding: 12px 14px; margin: 10px 0; border: 1px solid #f0c36d; border-radius: 10px;
+  background: #fff8e8; color: #4a3500; }
+.hd-offer .btn { justify-self: start; }

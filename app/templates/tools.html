@@ -75,7 +75,14 @@
     <div class="grid-opts">
       <div><label for="imgStyle">Style</label><select id="imgStyle"></select></div>
       <div><label for="imgAspect">Shape</label><select id="imgAspect"><option value="16:9">16:9 · YouTube, films</option><option value="9:16">9:16 · Reels, Shorts</option><option value="1:1">1:1 · square posts</option></select></div>
+      <div><label for="imgQuality">Quality</label><select id="imgQuality"><option value="hd">Film quality · 1024 px</option><option value="fast">Fast draft · 768 px</option></select></div>
       <div><label for="imgN">How many</label><select id="imgN"><option>1</option><option selected>2</option><option>4</option></select></div>
+    </div>
+    <div class="hd-offer hidden" id="hdOffer">
+      <b>🎬 Get film-quality pictures</b>
+      <span>A bigger picture model (Stable Diffusion XL Lightning) draws sharp, cinematic 1024-pixel pictures with real
+        light and detail. One-time download of about 4.8 GB; after that it works offline, about 10–30 seconds a picture.</span>
+      <button class="btn btn-primary small" id="hdGet">⬇ Download film quality</button>
     </div>
     <div class="row wrap"><button class="btn btn-primary" id="imgGo">🖼 Create</button>
       <button class="btn btn-outline" id="imgCheck" title="Test the picture creator and show a report">🔍 Check picture creator</button>

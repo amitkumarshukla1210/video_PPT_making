@@ -131,12 +131,19 @@ function renderRefChips() {
   $("#imgRefs").innerHTML = all.length ? "Insert: " + all.map((i) => `<button class="chip small" data-ins="${esc(i.tag)}">${esc(i.tag)}</button>`).join("")
     : '<span class="muted">Tip: save people in <a href="/tools/character">Character</a> and places in <a href="/tools/world">World</a>, then type @Name here so they look the same in every picture.</span>';
 }
+function showQuality() {
+  const hd = !!st.images.hd;
+  $("#imgQuality option[value=hd]").disabled = !hd;
+  $("#imgQuality option[value=hd]").textContent = hd ? "Film quality · 1024 px" : "Film quality (download below)";
+  if (!hd) $("#imgQuality").value = "fast";
+  $("#hdOffer").classList.toggle("hidden", hd || !st.images.available);
+}
 async function makeImages() {
   if (!st.images.available) return toast(st.images.info, true);
   $("#imgGo").disabled = true;
   try {
     await startJob("/api/tools/image", { method: "POST", json: { prompt: $("#imgPrompt").value, style: $("#imgStyle").value,
-      aspect: $("#imgAspect").value, n: +$("#imgN").value } }, $("#imgProg"));
+      aspect: $("#imgAspect").value, n: +$("#imgN").value, quality: $("#imgQuality").value } }, $("#imgProg"));
     await waitJob($("#imgProg"));
     await refresh(); renderMedia();
     toast("Pictures ready — they are in My pictures below");
@@ -241,6 +248,7 @@ async function init() {
   $("#vAs").insertAdjacentHTML("beforeend", st.characters.filter((c) => c.voice).map((c) => `<option value="${c.id}">${esc(c.tag)}</option>`).join(""));
   fillVoice(st.default_engine, "en-us");
   if (!st.images.available) $("#imgStatus").textContent = `Picture creator: ${st.images.info}`;
+  showQuality();
   renderMedia(); renderRefChips(); renderRefs("characters"); renderRefs("worlds");
   show(document.body.dataset.tool);
 
@@ -252,6 +260,15 @@ async function init() {
   };
   $("#clipGo").onclick = makeClip;
   $("#imgGo").onclick = makeImages;
+  $("#hdGet").onclick = async () => {
+    $("#hdGet").disabled = true;
+    try {
+      const r = await startJob("/api/tools/image/download_hd", { method: "POST" }, $("#imgProg"));
+      if (!r?.done) await waitJob($("#imgProg"));
+      await refresh(); showQuality();
+      toast("Film quality is ready — your next pictures use it");
+    } catch (e) { toast(e.message, true); } finally { $("#hdGet").disabled = false; }
+  };
   $("#imgCheck").onclick = async () => {
     $("#imgCheck").disabled = true;
     try {

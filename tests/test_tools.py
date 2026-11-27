@@ -104,13 +104,13 @@ def test_images_use_style_and_characters(client, monkeypatch):
     seen = {}
     monkeypatch.setattr(images, "status", lambda: {"available": True, "info": "ok"})
 
-    def gen(prompts, aspect="16:9", seed=None, steps=4, progress=lambda d, t: None):
-        seen.update(prompts=prompts, aspect=aspect)
+    def gen(prompts, aspect="16:9", seed=None, steps=None, progress=lambda d, t: None, quality=None):
+        seen.update(prompts=prompts, aspect=aspect, quality=quality)
         return [_png().getvalue() for _ in prompts]
     monkeypatch.setattr(images, "generate", gen)
     tools.save_ref("characters", "Maya", "red raincoat")
-    r = tools.create_images("@Maya in the rain", "anime", "9:16", 2)
-    assert len(r["images"]) == 2 and seen["aspect"] == "9:16"
+    r = tools.create_images("@Maya in the rain", "anime", "9:16", 2, quality="fast")
+    assert len(r["images"]) == 2 and seen["aspect"] == "9:16" and seen["quality"] == "fast"
     assert seen["prompts"][0].startswith("Maya (red raincoat) in the rain") and "anime" in seen["prompts"][0]
 
 

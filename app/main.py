@@ -280,7 +280,18 @@ def tool_image():
         abort(400, images.status()["info"])
     return _tool_job(lambda progress, cancelled: tools.create_images(
         prompt, str(b.get("style") or "none"), str(b.get("aspect") or "16:9"), b.get("n") or 1,
-        lambda f, m: progress("Creating pictures", f, m)))
+        lambda f, m: progress("Creating pictures", f, m), quality=b.get("quality") or None))
+
+
+@app.post("/api/tools/image/download_hd")
+def tool_image_download_hd():
+    """Download the film-quality picture model (one time, about 4.8 GB) as a background job."""
+    from .ai import images
+    if images.hd_ready():
+        return jsonify(ok=True, done=True)
+    gb = images.HD_SIZE_GB
+    return _tool_job(lambda progress, cancelled: images.download_hd(
+        lambda d, t: progress("Downloading film quality", d / t, f"{d / 1e9:.1f} of {gb} GB — one time")))
 
 
 @app.post("/api/tools/image/check")

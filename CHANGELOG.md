@@ -6,6 +6,18 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.11.0 — 2026-11-27
+- **🎬 Film-quality pictures.** A second, bigger picture model (Stable Diffusion XL Lightning, OpenVINO, free for
+  commercial use under OpenRAIL++) draws sharp, cinematic 1024-pixel pictures with real light, skin and detail. It is
+  a one-time download of about 4.8 GB: click **⬇ Download film quality** in Tools › 2 Image, or run
+  `install_once.bat hd`. It works offline after that. A picture takes about 8–30 seconds.
+  - New **Quality** choice: *Film quality · 1024 px* (the default once downloaded) or *Fast draft · 768 px*.
+  - Videos made with "Make a video" also use film quality when it is there.
+- **Better prompts for both models.** The models read only about the first 70 words of a prompt. Your subject now
+  comes first and is kept short enough that the quality words (cinematic film still, photorealistic, detailed face,
+  sharp focus) always fit. Repeated words are removed.
+- **Photo finish:** every picture gets a light contrast and sharpness touch-up, which removes the soft, hazy look.
+
 ## 1.10.0 — 2026-11-27
 - **Pictures remember who and where they show.**
   - A picture made with @Shurpanakha in the prompt is saved as `Shurpanakha_….png` and tagged **@Shurpanakha**. A

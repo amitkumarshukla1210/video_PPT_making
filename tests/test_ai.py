@@ -293,6 +293,7 @@ def test_picture_creator_endpoint_with_stand_in_worker(tmp_path, monkeypatch):
     monkeypatch.setattr(images, "WORKER", fake)
     monkeypatch.setattr(images, "_python", lambda: sys.executable)
     monkeypatch.setattr(images, "_model_cached", lambda: True)
+    monkeypatch.setattr(images, "hd_ready", lambda: False)
     monkeypatch.setattr(images, "LOG", tmp_path / "log.txt")
     monkeypatch.setattr(images, "CACHE", tmp_path / "ov_cache")
     srv = images._Server()

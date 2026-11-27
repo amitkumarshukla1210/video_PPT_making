@@ -233,22 +233,40 @@ def expand(text):
 
 
 # ---------- Image ----------
-def create_images(prompt, style="none", aspect="16:9", n=1, progress=lambda f, m: None, prefix=None, tags=None):
+# Quality words that make the models draw like a film camera. The models read only about the first 70 words (77
+# tokens) of a prompt and silently drop the rest, so the subject is kept to SUBJECT_WORDS and the style and quality
+# words always fit after it (subject first: the first words weigh most).
+QUALITY = "cinematic film still, photorealistic, detailed face, sharp focus"
+SUBJECT_WORDS = 45
+
+
+def build_prompt(subject, style="none"):
+    words = subject.split()
+    if len(words) > SUBJECT_WORDS:
+        subject = " ".join(words[:SUBJECT_WORDS]).rstrip(",;.")
+    extra = STYLES.get(style, STYLES["none"])[1]
+    parts = [p.strip() for p in extra.split(",") if p.strip()]
+    if style in ("none", "cinematic", "photo"):
+        parts += QUALITY.split(", ")
+    parts = list(dict.fromkeys(parts))                     # no repeated words
+    return ", ".join([subject] + parts) if parts else subject
+
+
+def create_images(prompt, style="none", aspect="16:9", n=1, progress=lambda f, m: None, prefix=None, tags=None,
+                  quality=None):
     """Pictures from a prompt. They are named after the characters / places in it (Shurpanakha_….png) and
-    tagged with them, so they can be found and reused later."""
+    tagged with them, so they can be found and reused later. quality: 'hd' (film quality) or 'fast'."""
     from .ai import images
     if not images.status()["available"]:
         raise RuntimeError(images.status()["info"])
     tags = list(tags) if tags is not None else tags_in(prompt)
     prefix = prefix or _name_part(tags)
-    full = expand(prompt.strip())
-    extra = STYLES.get(style, STYLES["none"])[1]
-    if extra:
-        full = f"{full}, {extra}"
+    full = build_prompt(expand(prompt.strip()), style)
     n = max(1, min(8, int(n or 1)))
     progress(0.02, f"Drawing {n} picture(s)…" if images.warm() else
              "Starting the picture creator (about a minute; the very first time on this laptop 2–3 minutes)")
-    pngs = images.generate([full] * n, aspect, progress=lambda d, t: progress(d / max(t, 1), f"Picture {min(d + 1, t)} of {t}"))
+    pngs = images.generate([full] * n, aspect, quality=quality,
+                           progress=lambda d, t: progress(d / max(t, 1), f"Picture {min(d + 1, t)} of {t}"))
     names = []
     for png in pngs:
         name = _stamp(prefix, ".png")
