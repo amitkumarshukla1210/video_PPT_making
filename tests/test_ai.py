@@ -280,14 +280,23 @@ def test_picture_creator_endpoint_with_stand_in_worker(tmp_path, monkeypatch):
     fake.write_text(textwrap.dedent('''
         import json, sys
         from PIL import Image
-        job = json.load(open(sys.argv[1], encoding="utf-8"))
-        for n, it in enumerate(job["items"]):
-            Image.new("RGB", (job["width"], job["height"]), (20, 90, 160)).save(it["out"])
-            print(f"PROGRESS {n + 1} {len(job['items'])}", flush=True)
+        for line in sys.stdin:                       # --serve mode: one job per line, answer ... DONE / END
+            job = json.loads(line)
+            if job.get("cmd") == "quit":
+                break
+            for n, it in enumerate(job["items"]):
+                Image.new("RGB", (job["width"], job["height"]), (20, 90, 160)).save(it["out"])
+                print(f"PROGRESS {n + 1} {len(job['items'])}", flush=True)
+            print("DONE")
+            print("END", flush=True)
     '''))
     monkeypatch.setattr(images, "WORKER", fake)
     monkeypatch.setattr(images, "_python", lambda: sys.executable)
     monkeypatch.setattr(images, "_model_cached", lambda: True)
+    monkeypatch.setattr(images, "LOG", tmp_path / "log.txt")
+    monkeypatch.setattr(images, "CACHE", tmp_path / "ov_cache")
+    srv = images._Server()
+    monkeypatch.setattr(images, "SERVER", srv)
     c = app.test_client()
     assert c.get("/v1/ai/status").get_json()["images"]["available"] is True
     r = c.post("/v1/images/generations", json={"prompt": "a design studio at dawn", "aspect": "9:16"})
@@ -297,6 +306,7 @@ def test_picture_creator_endpoint_with_stand_in_worker(tmp_path, monkeypatch):
     img = Image.open(io.BytesIO(base64.b64decode(r.get_json()["data"][0]["b64_json"])))
     assert img.size == images.SIZES["9:16"]
     assert c.post("/v1/images/generations", json={}).status_code == 400
+    srv.stop()
 
 
 def test_picture_creator_explains_when_not_installed(monkeypatch):
