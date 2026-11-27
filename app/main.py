@@ -144,12 +144,12 @@ def inspiration_use(eid):
 
 
 # ---------- Tools: Video, Image, Audio, Character, World ----------
-TOOL_PAGES = ("video", "image", "audio", "character", "world")
+TOOL_PAGES = ("character", "image", "world", "audio", "video")     # the order a film is made in
 
 
 @app.get("/tools")
 @app.get("/tools/<tool>")
-def tools_page(tool="video"):
+def tools_page(tool="character"):
     if tool not in TOOL_PAGES:
         abort(404)
     return render_template("tools.html", version=app_version(), page="tool-" + tool, tool=tool)
