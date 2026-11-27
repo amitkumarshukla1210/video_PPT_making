@@ -6,6 +6,25 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.9.5 — 2026-11-27
+**The picture creator was tested for real this time.** I downloaded the real model and the same packages your
+laptop uses, and made pictures end to end. That testing found and fixed four more problems:
+- **Wrong pipeline type.** This model is a plain Stable Diffusion model with an LCM scheduler and has no
+  "guidance" input. The app had loaded it as an LCM pipeline, which newer libraries reject ("NoneType // int",
+  then "Port for tensor name timestep_cond was not found"). The picture creator now looks at the model and picks the
+  matching pipeline.
+- **Guidance was set to 8**, which burns the colours with this model. It now uses 1.5, checked on real pictures:
+  1.5 is clean, 2.5 is already over-saturated.
+- **With `transformers` 5, the CLIPFeatureExtractor fix did not take effect**, because `transformers` replaces its own
+  module while loading. The fix now patches the module that is current, and runs again just before loading.
+- **The model is opened straight from its folder** in `models\hf`, so no internet lookup happens, whatever version
+  of the download helper is installed.
+- **Privacy:** OpenVINO tried to send usage statistics to Google Analytics. This is now switched off, with
+  Hugging Face's statistics too, for the offline app.
+
+Measured on a 4-core processor, without a graphics card: the first picture after starting takes about 30 s, and each
+picture after that about 7–9 s. Changing the shape takes about 25 s once.
+
 ## 1.9.4 — 2026-11-27
 - Fix: clicking Create (or Check, Create portrait, Make the clip) while an earlier picture job was still running
   showed raw web code ("409 Conflict"). Now the page shows the running job's progress, waits for it to finish, then

@@ -7,8 +7,13 @@ job.json = {"model": "...", "width": 768, "height": 432, "steps": 4, "seed": nul
 Prints "PROGRESS <done> <total>". Loads the model once for the batch. Uses the graphics card when OpenVINO
 can; if the graphics card fails, it falls back to the processor (CPU) instead of giving up."""
 import json
+import os
 import platform
 import sys
+
+os.environ.setdefault("OPENVINO_TELEMETRY_OPTOUT", "1")     # no usage statistics (Google Analytics) from OpenVINO
+os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
+os.environ.setdefault("DO_NOT_TRACK", "1")
 import time
 import traceback
 
@@ -20,38 +25,65 @@ def compat():
     """transformers 5 removed CLIPFeatureExtractor, which the picture model's files still name.
     CLIPImageProcessor is its replacement (same class since transformers 4.25)."""
     import transformers
-    if not hasattr(transformers, "CLIPFeatureExtractor") and hasattr(transformers, "CLIPImageProcessor"):
-        transformers.CLIPFeatureExtractor = transformers.CLIPImageProcessor
+    proc = getattr(transformers, "CLIPImageProcessor", None)
+    # transformers 5 can replace its module object in sys.modules while loading an attribute, so patch the module
+    # that is current now (and the one we imported), not just the first reference.
+    for mod in {id(m): m for m in (transformers, sys.modules.get("transformers")) if m is not None}.values():
+        if proc is not None and "CLIPFeatureExtractor" not in vars(mod) and not hasattr(mod, "CLIPFeatureExtractor"):
+            setattr(mod, "CLIPFeatureExtractor", proc)
 
 
 def say(msg):
     print(msg, flush=True)
 
 
+def unet_inputs(pipe):
+    try:
+        return {n for i in pipe.unet.model.inputs for n in i.get_names()}
+    except Exception:                                # noqa: BLE001
+        return set()
+
+
 def fix_lcm(pipe):
-    """Older OpenVINO exports of LCM models have no `time_cond_proj_dim` in the UNet config; optimum-intel then
-    sets it to None and drawing fails ("NoneType // int" in get_guidance_scale_embedding). The value is the width
-    of the model's `timestep_cond` input (256 for LCM DreamShaper): read it from the model, set it in the config."""
+    """An LCM UNet with a `timestep_cond` input but no `time_cond_proj_dim` in its config: optimum-intel sets it to
+    None and drawing fails ("NoneType // int"). Read the width of that input and set it. Models without the input
+    are left alone (they use the plain Stable Diffusion pipeline, see load())."""
     unet = getattr(pipe, "unet", None)
     if unet is None or getattr(unet.config, "time_cond_proj_dim", None):
         return
-    dim = 256
     try:
         for inp in unet.model.inputs:
             if "timestep_cond" in inp.get_names():
                 last = inp.get_partial_shape()[-1]
-                if last.is_static:
-                    dim = last.get_length()
-    except Exception:                                # noqa: BLE001 — keep the LCM default
+                dim = last.get_length() if last.is_static else 256
+                unet.register_to_config(time_cond_proj_dim=dim)
+                say(f"INFO set the missing time_cond_proj_dim to {dim}")
+    except Exception:                                # noqa: BLE001
         pass
-    unet.register_to_config(time_cond_proj_dim=dim)
-    say(f"INFO set the missing time_cond_proj_dim to {dim}")
+
+
+# guidance per pipeline kind: LCM UNets with a guidance input were distilled for ~8; LCM weights exported as a
+# plain Stable Diffusion UNet (no guidance input, e.g. rupeshs/LCM-dreamshaper-v7-openvino) need ~1.5 —
+# higher values burn the colours (checked on the real model: 1.5 clean, 2.5 over-saturated).
+GUIDANCE = {"lcm": 8.0, "sd": 1.5}
+
+
+def _pipeline(model, cache):
+    """The right pipeline for the model: the LCM pipeline only when the UNet takes `timestep_cond`."""
+    from optimum.intel import OVStableDiffusionPipeline, OVLatentConsistencyModelPipeline
+    cfg = {"CACHE_DIR": cache or ""}
+    compat()                                         # again, after optimum/diffusers were imported
+    pipe = OVStableDiffusionPipeline.from_pretrained(model, ov_config=cfg, compile=False)
+    if "timestep_cond" in unet_inputs(pipe):
+        pipe = OVLatentConsistencyModelPipeline.from_pretrained(model, ov_config=cfg, compile=False)
+        fix_lcm(pipe)
+        return pipe, "lcm"
+    return pipe, "sd"
 
 
 def load(model, width, height, prefer_gpu=True, cache=""):
     """Load and compile the pipeline: graphics card first, processor (CPU) if that fails.
     cache = folder where OpenVINO keeps the compiled model, so the next start takes seconds, not minutes."""
-    from optimum.intel import OVLatentConsistencyModelPipeline
     import openvino as ov
     devices = ov.Core().available_devices
     say(f"INFO devices: {', '.join(devices)}")
@@ -60,14 +92,13 @@ def load(model, width, height, prefer_gpu=True, cache=""):
     for dev in tries:
         try:
             t = time.time()
-            pipe = OVLatentConsistencyModelPipeline.from_pretrained(model, ov_config={"CACHE_DIR": cache or ""},
-                                                                    compile=False)
-            fix_lcm(pipe)
+            pipe, kind = _pipeline(model, cache)
+            pipe.dtc_kind = kind
             if dev != "CPU":
                 pipe.to(dev)
             pipe.reshape(batch_size=1, height=height, width=width, num_images_per_prompt=1)
             pipe.compile()
-            say(f"INFO model ready on {dev} in {time.time() - t:.0f}s")
+            say(f"INFO model ready on {dev} in {time.time() - t:.0f}s ({kind} pipeline)")
             return pipe, dev
         except Exception as e:                       # noqa: BLE001 — try the next device
             last = e
@@ -78,8 +109,9 @@ def load(model, width, height, prefer_gpu=True, cache=""):
 def make(pipe, prompt, width, height, steps, seed):
     import torch
     gen = torch.Generator().manual_seed(int(seed)) if seed is not None else None
+    guidance = GUIDANCE.get(getattr(pipe, "dtc_kind", "sd"), 1.5)
     return pipe(prompt=prompt + STYLE, negative_prompt=NEGATIVE, width=width, height=height,
-                num_inference_steps=int(steps or 4), guidance_scale=8.0, generator=gen).images[0]
+                num_inference_steps=int(steps or 4), guidance_scale=guidance, generator=gen).images[0]
 
 
 def run(job, state=None):

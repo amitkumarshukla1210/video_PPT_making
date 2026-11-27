@@ -1,6 +1,0 @@
-Traceback (most recent call last):
-  File "/tmp/pytest-of-root/pytest-21/test_picture_creator_endpoint_0/fake_image_worker.py", line 4, in <module>
-    job = json.load(open(sys.argv[1], encoding="utf-8"))
-                    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-FileNotFoundError: [Errno 2] No such file or directory: '--serve'
-ERROR the picture creator stopped unexpectedly
