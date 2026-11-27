@@ -38,3 +38,6 @@
 .visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .tool-tabs a b i { display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 6px; border-radius: 50%; background: var(--blue-soft); color: var(--brand-dark); font-style: normal; font-size: 12px; }
 .tool-tabs a.on b i { background: var(--brand); color: #fff; }
+.check-report { margin: 12px 0; padding: 12px; border: 1px solid var(--danger); border-radius: 10px; background: #fff7f6; }
+.check-report.ok { border-color: #31916a; background: #f3fbf6; }
+.check-report pre { white-space: pre-wrap; font-size: 12px; margin: 0 0 8px; max-height: 360px; overflow: auto; }

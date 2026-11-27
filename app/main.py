@@ -212,6 +212,15 @@ def tool_image():
         lambda f, m: progress("Creating pictures", f, m)))
 
 
+@app.post("/api/tools/image/check")
+def tool_image_check():
+    """Picture creator self-test (versions, graphics card, model, one small picture) as a background job."""
+    from .ai import images
+    return _tool_job(lambda progress, cancelled: (progress("Checking the picture creator", 0.1,
+                                                           "Loading the model (1–3 minutes the first time)"),
+                                                  images.check())[1])
+
+
 @app.post("/api/tools/upload")
 def tool_upload():
     f = request.files.get("file")
