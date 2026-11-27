@@ -202,7 +202,9 @@ function renderRefs(kind) {
       <div class="ref-body"><b>${esc(i.name)}</b> <code>${esc(i.tag)}</code><p>${esc(i.description)}</p>
       ${i.voice ? `<p class="muted">🎙 ${esc(i.voice.engine)} · ${esc(i.voice.voice || "default")}</p>` : ""}
       <p><a href="/tools/image?tag=${encodeURIComponent(i.tag)}">🖼 ${i.pictures || 0} picture${i.pictures === 1 ? "" : "s"} of ${esc(i.tag)}</a></p>
-      <div class="row wrap"><button class="btn btn-outline small" data-pic="${kind}/${i.id}" ${st.images.available ? "" : "disabled title='Picture creator not installed'"}>${R.pic}</button>
+      <div class="row wrap"><label class="btn btn-outline small" title="Your own photos of ${esc(i.tag)} — several at once">⬆ Upload pictures
+        <input type="file" accept="image/*" multiple class="visually-hidden" data-upref="${kind}/${i.id}"></label>
+      <button class="btn btn-outline small" data-pic="${kind}/${i.id}" ${st.images.available ? "" : "disabled title='Picture creator not installed'"}>${R.pic}</button>
       <button class="btn btn-outline small" data-edit="${kind}/${i.id}">✎ Edit</button>
       <button class="btn btn-outline small" data-copy="${esc(i.tag)}">Copy ${esc(i.tag)}</button>
       <button class="btn btn-outline small danger" data-delref="${kind}/${i.id}">🗑</button></div></div></article>`).join("")
@@ -276,6 +278,18 @@ async function init() {
   };
 
   document.addEventListener("change", async (e) => {
+    const up = e.target.dataset?.upref;
+    if (up && e.target.files.length) {
+      const [k, id] = up.split("/");
+      const fd = new FormData();
+      for (const f of e.target.files) fd.append("files", f, f.name);
+      try {
+        const r = await api(`/api/tools/${k}/${id}/upload`, { method: "POST", body: fd });
+        await refresh(); renderRefs(k); renderMedia(); renderRefChips();
+        toast(`${r.images.length} picture(s) saved in My pictures`);
+      } catch (err) { toast(err.message, true); }
+      return;
+    }
     const name = e.target.dataset?.addtag; if (!name || !e.target.value) return;
     const f = st.media.images.find((x) => x.name === name);
     await api(`/api/tools/media/images/${encodeURIComponent(name)}/tags`, { method: "PUT", json: { tags: [...f.tags, e.target.value] } })

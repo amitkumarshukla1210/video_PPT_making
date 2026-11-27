@@ -212,3 +212,18 @@ def test_pages_have_the_viewer_and_the_picker(client):
     tools_html = client.get("/tools/image").get_data(as_text=True)
     assert 'id="viewer"' in tools_html and 'id="imgFilters"' in tools_html
     assert 'id="picker"' in client.get("/make").get_data(as_text=True)
+
+
+def test_upload_own_pictures_for_a_character(client):
+    ram = tools.save_ref("characters", "Ram", "prince with a bow")
+    files = [(_png(c), f"ram{k}.png") for k, c in enumerate(("#111111", "#222222", "#333333", "#444444"))]
+    r = client.post(f"/api/tools/characters/{ram['id']}/upload", data={"files": files}, content_type="multipart/form-data")
+    names = r.get_json()["images"]
+    assert len(names) == 4 and all(n.startswith("ram") for n in names)
+    assert all(tools.picture_info(n)["tags"] == ["@Ram"] for n in names)
+    assert tools.refs("characters")[0]["image"] == names[0]                 # first one became the portrait
+    assert tools.refs_with_counts("characters")[0]["pictures"] == 4
+    assert client.post(f"/api/tools/characters/{ram['id']}/upload", data={}, content_type="multipart/form-data").status_code == 400
+    bad = client.post(f"/api/tools/characters/{ram['id']}/upload", data={"files": [(io.BytesIO(b"x"), "a.exe")]},
+                      content_type="multipart/form-data")
+    assert bad.status_code == 400

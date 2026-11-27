@@ -17,6 +17,8 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
   - **⭐ @Name** makes a picture that character's main picture.
   - Renaming a character updates the tags on its pictures.
   - Each character card shows "🖼 N pictures of @Name"; click it to see them.
+- **⬆ Upload pictures** on every character and world card: add your own photos (several at once, up to 20). They are
+  saved in My pictures, tagged with @Name, and the first one becomes the main picture if the character has none yet.
 - **Full-screen view:** click any picture (and character portraits) to see it full screen. Use ‹ › or the arrow keys to
   flip through, Esc or ✕ to close, and ⬇ to download.
 - **Use your pictures in a video:** in Make a video, step 2, every scene has **🖼 My pictures**. Pick a saved picture,

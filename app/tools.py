@@ -258,14 +258,14 @@ def create_images(prompt, style="none", aspect="16:9", n=1, progress=lambda f, m
     return {"images": names, "prompt": full, "tags": tags}
 
 
-def save_upload(file_storage):
+def save_upload(file_storage, tags=None):
     ext = Path(file_storage.filename or "").suffix.lower()
     if ext not in (".png", ".jpg", ".jpeg", ".webp"):
         raise ValueError("Use a PNG, JPG or WEBP picture.")
     stem = re.sub(r"[^\w-]", "", Path(file_storage.filename or "").stem)[:30] or "upload"
     name = _stamp(stem, ext)
     file_storage.save(_dir("images") / name)
-    set_picture(name, tags=[], prompt="")
+    set_picture(name, tags=list(tags or []), prompt="")
     return name
 
 

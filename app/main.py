@@ -200,6 +200,27 @@ def media_tags(name):
     return jsonify(tools.set_picture(name, tags=tags))
 
 
+@app.post("/api/tools/<kind>/<rid>/upload")
+def ref_upload(kind, rid):
+    """Your own pictures of a character / place (one or many at once): saved in My pictures, tagged with its @Name;
+    the first becomes the main picture when it has none yet."""
+    if kind not in tools.REF_KINDS:
+        abort(404)
+    item = next((i for i in tools.refs(kind) if i["id"] == rid), None) or abort(404)
+    files = request.files.getlist("files")
+    if not files:
+        abort(400, "Choose one or more pictures")
+    names = []
+    try:
+        for f in files[:20]:
+            names.append(tools.save_upload(f, tags=[item["tag"]]))
+    except ValueError as e:
+        abort(400, str(e))
+    if not item.get("image"):
+        tools.set_ref_image(kind, rid, names[0])
+    return jsonify(images=names)
+
+
 @app.post("/api/tools/<kind>/<rid>/portrait")
 def ref_portrait(kind, rid):
     """Use one of My pictures as the character's portrait / the world's view."""
