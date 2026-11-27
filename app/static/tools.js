@@ -84,7 +84,12 @@ async function makeImages() {
     await waitJob($("#imgProg"));
     await refresh(); renderMedia();
     toast("Pictures ready — they are in My pictures below");
-  } catch (e) { toast(e.message, true); } finally { $("#imgGo").disabled = false; }
+    $("#imgReport").classList.add("hidden");
+  } catch (e) {
+    toast("Picture creation failed — see the message below", true);
+    $("#imgReport pre").textContent = e.message + "\n\nClick “🔍 Check picture creator” for a full report.";
+    $("#imgReport").classList.remove("hidden", "ok");
+  } finally { $("#imgGo").disabled = false; }
 }
 
 // ---------- Audio ----------
@@ -188,6 +193,21 @@ async function init() {
   };
   $("#clipGo").onclick = makeClip;
   $("#imgGo").onclick = makeImages;
+  $("#imgCheck").onclick = async () => {
+    $("#imgCheck").disabled = true;
+    try {
+      await api("/api/tools/image/check", { method: "POST" });
+      const r = await waitJob($("#imgProg"));
+      $("#imgReport pre").textContent = r.report;
+      $("#imgReport").classList.remove("hidden");
+      $("#imgReport").classList.toggle("ok", r.ok);
+      toast(r.ok ? "The picture creator works" : "The picture creator has a problem — copy the report and send it", !r.ok);
+    } catch (e) { toast(e.message, true); } finally { $("#imgCheck").disabled = false; }
+  };
+  $("#imgCopy").onclick = async () => {
+    try { await navigator.clipboard.writeText($("#imgReport pre").textContent); toast("Report copied"); }
+    catch (e) { toast("Select the text and copy it with Ctrl+C", true); }
+  };
   $("#vGo").onclick = makeVoice;
   $("#mGo").onclick = makeMusic;
   $("#vEngine").onchange = () => fillVoice($("#vEngine").value);

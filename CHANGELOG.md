@@ -6,6 +6,17 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.9.2 — 2026-11-27
+- **Fix: the picture creator failed with "Shape inference … Concat … [2,1280,28,48] [2,640,27,48]".** Pictures were
+  drawn at 768×432, but this model only works with sizes in multiples of 64. They are now drawn at 768×448 (and
+  448×768 for 9:16), then trimmed to the exact 16:9 / 9:16 shape. This affects Tools › Image, character portraits,
+  world views, pictures in Make a video and the Studio's picture creator.
+- If the graphics card cannot run the model, or fails while drawing, the picture creator now switches to the
+  processor (CPU) instead of failing.
+- New **🔍 Check picture creator** button in Tools › Image. It tests the versions, the graphics card, model loading
+  and one small picture, and shows a report you can copy. Errors are now short and readable; the full log is kept in
+  `models\logs\picture_creator.log`.
+
 ## 1.9.1 — 2026-11-27
 - Fix: the picture creator failed with "module transformers has no attribute CLIPFeatureExtractor". Version 5
   of the `transformers` package removed that name, but the picture model still uses it.

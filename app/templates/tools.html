@@ -76,7 +76,11 @@
       <div><label for="imgAspect">Shape</label><select id="imgAspect"><option value="16:9">16:9 · YouTube, films</option><option value="9:16">9:16 · Reels, Shorts</option><option value="1:1">1:1 · square posts</option></select></div>
       <div><label for="imgN">How many</label><select id="imgN"><option>1</option><option selected>2</option><option>4</option></select></div>
     </div>
-    <div class="row wrap"><button class="btn btn-primary" id="imgGo">🖼 Create</button><span class="muted" id="imgStatus" aria-live="polite"></span></div>
+    <div class="row wrap"><button class="btn btn-primary" id="imgGo">🖼 Create</button>
+      <button class="btn btn-outline" id="imgCheck" title="Test the picture creator and show a report">🔍 Check picture creator</button>
+      <span class="muted" id="imgStatus" aria-live="polite"></span></div>
+    <p class="muted">Tip: the picture model reads about the first 60–70 words of a prompt. Put a character's look in <a href="/tools/character">1 Character</a> once, then write short scenes like “@Ram and @Sita in a forest hut at sunset”.</p>
+    <div class="check-report hidden" id="imgReport"><pre></pre><button class="btn btn-outline small" id="imgCopy">📋 Copy report</button></div>
     <div class="progress hidden" id="imgProg"><div class="bar"><div></div></div><p class="muted"></p></div>
     <h3 class="sub">My pictures</h3>
     <div class="pic-grid" id="imageList"></div>
