@@ -110,7 +110,9 @@ def make_pictures(proj, progress=lambda stage, f, m: None, cancelled=lambda: Fal
         raise Cancelled()
     base = P.folder(proj["id"])
     from .tools import expand
-    prompts = [expand(s.get("image_prompt") or f"{s['title']}, professional corporate photo, modern, clean") for s in todo]
+    fallback = "professional corporate photo, modern, clean" if (proj.get("look") or "corporate") == "corporate" \
+        else "cinematic film still, dramatic light"
+    prompts = [expand(s.get("image_prompt") or f"{s['title']}, {fallback}") for s in todo]
     progress("Creating pictures", 0.0, f"Loading the picture model for {len(todo)} pictures")
     pngs = images.generate(prompts, "16:9", progress=lambda d, t: progress(
         "Creating pictures", d / max(t, 1), f"Picture {min(d + 1, t)} of {t}"))     # one model load for all

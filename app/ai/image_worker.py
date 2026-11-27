@@ -8,11 +8,20 @@ import json
 import sys
 
 NEGATIVE = "text, letters, watermark, logo, signature, blurry, low quality, deformed"
-STYLE = ", professional corporate photography, cinematic lighting, high detail"
+STYLE = ", high detail, sharp focus"        # the user's prompt and chosen style decide the look
+
+
+def compat():
+    """transformers 5 removed CLIPFeatureExtractor, which the picture model's files still name.
+    CLIPImageProcessor is its replacement (same class since transformers 4.25)."""
+    import transformers
+    if not hasattr(transformers, "CLIPFeatureExtractor") and hasattr(transformers, "CLIPImageProcessor"):
+        transformers.CLIPFeatureExtractor = transformers.CLIPImageProcessor
 
 
 def main():
     job = json.load(open(sys.argv[1], encoding="utf-8"))
+    compat()
     from optimum.intel import OVLatentConsistencyModelPipeline
     import openvino as ov
 

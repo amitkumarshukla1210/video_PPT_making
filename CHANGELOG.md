@@ -6,6 +6,14 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.9.1 — 2026-11-27
+- Fix: the picture creator failed with "module transformers has no attribute CLIPFeatureExtractor". Version 5
+  of the `transformers` package removed that name, but the picture model still uses it.
+  - The app now maps it to its replacement, `CLIPImageProcessor`.
+  - The picture creator's install now keeps `transformers` below 5. `update_windows.bat` does this for you.
+- Pictures are no longer pushed towards "corporate photography". Your prompt and the chosen style decide the look
+  (film characters, mythology, anime…).
+
 ## 1.9.0 — 2026-11-26
 - **Inspirations now has 100 examples in 9 categories:** 11 each in Trending Templates, Short Film, Music Video,
   UGC Ads, Product Ads, Film Trailer, Social Content and Explainer, plus **12 Viral presets**.

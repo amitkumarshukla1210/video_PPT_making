@@ -112,3 +112,17 @@ def test_images_use_style_and_characters(client, monkeypatch):
     r = tools.create_images("@Maya in the rain", "anime", "9:16", 2)
     assert len(r["images"]) == 2 and seen["aspect"] == "9:16"
     assert seen["prompts"][0].startswith("Maya (red raincoat) in the rain") and "anime" in seen["prompts"][0]
+
+
+def test_picture_worker_works_with_transformers_5(monkeypatch):
+    """transformers 5 removed CLIPFeatureExtractor; the worker maps it to CLIPImageProcessor before loading."""
+    import types
+    from app.ai import image_worker
+    fake = types.ModuleType("transformers")
+    fake.CLIPImageProcessor = type("CLIPImageProcessor", (), {})
+    monkeypatch.setitem(sys.modules, "transformers", fake)
+    image_worker.compat()
+    assert fake.CLIPFeatureExtractor is fake.CLIPImageProcessor
+    assert "corporate" not in image_worker.STYLE                 # films are not forced into a corporate look
+    req = (Path(__file__).resolve().parent.parent / "requirements-image.txt").read_text()
+    assert "transformers>=4.45,<5" in req
