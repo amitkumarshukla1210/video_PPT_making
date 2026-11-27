@@ -91,20 +91,83 @@ def test_check_prints_a_report(monkeypatch, capsys):
     assert "CHECK python" in out and "CHECK OK" in out and "devices: CPU" in out
 
 
-def test_errors_are_short_and_point_to_the_log(monkeypatch, tmp_path):
-    bad = tmp_path / "worker.py"
-    bad.write_text("import sys\nprint('Traceback (most recent call last):')\nprint('  lots of lines')\n"
-                   "print('ERROR AttributeError: module transformers has no attribute X')\nsys.exit(1)\n")
-    monkeypatch.setattr(images, "WORKER", bad)
+BAD_WORKER = """import sys
+if sys.argv[1] == "--serve":
+    for line in sys.stdin:
+        if '"quit"' in line:
+            break
+        print('Traceback (most recent call last):')
+        print('  lots of lines')
+        print('ERROR AttributeError: module transformers has no attribute X')
+        print('END', flush=True)
+else:
+    print('ERROR AttributeError: module transformers has no attribute X')
+    sys.exit(1)
+"""
+
+GOOD_WORKER = """import json, sys
+from PIL import Image
+starts = 0
+for line in sys.stdin:
+    job = json.loads(line)
+    if job.get('cmd') == 'quit':
+        break
+    assert job['width'] % 64 == 0 and job['height'] % 64 == 0, job
+    assert job['cache']
+    if starts == 0:
+        print('INFO model ready on GPU in 1s')
+    starts += 1
+    for n, i in enumerate(job['items']):
+        Image.new('RGB', (job['width'], job['height']), 'blue').save(i['out'])
+        print(f"PROGRESS {n + 1} {len(job['items'])}")
+    print(f'INFO jobs {starts}')
+    print('DONE')
+    print('END', flush=True)
+"""
+
+
+def _server(monkeypatch, tmp_path, code):
+    w = tmp_path / "w.py"
+    w.write_text(code)
+    monkeypatch.setattr(images, "WORKER", w)
     monkeypatch.setattr(images, "_python", lambda: sys.executable)
     monkeypatch.setattr(images, "LOG", tmp_path / "logs" / "picture_creator.log")
-    with pytest.raises(RuntimeError) as e:
-        images.generate(["a cat"])
-    msg = str(e.value)
-    assert "ERROR AttributeError" in msg and "Full log:" in msg
-    assert "lots of lines" in (tmp_path / "logs" / "picture_creator.log").read_text()
-    r = images.check()
-    assert r["ok"] is False and "ERROR AttributeError" in r["report"] and "Model files downloaded" in r["report"]
+    monkeypatch.setattr(images, "CACHE", tmp_path / "ov_cache")
+    srv = images._Server()
+    monkeypatch.setattr(images, "SERVER", srv)
+    return srv
+
+
+def test_errors_are_short_and_point_to_the_log(monkeypatch, tmp_path):
+    srv = _server(monkeypatch, tmp_path, BAD_WORKER)
+    try:
+        with pytest.raises(RuntimeError) as e:
+            images.generate(["a cat"])
+        msg = str(e.value)
+        assert "ERROR AttributeError" in msg and "Full log:" in msg
+        assert "lots of lines" in (tmp_path / "logs" / "picture_creator.log").read_text()
+        assert srv.alive()                                  # one bad job does not kill the picture creator
+        r = images.check()
+        assert r["ok"] is False and "ERROR AttributeError" in r["report"] and "Model files downloaded" in r["report"]
+        assert not srv.alive()                              # the check frees the running one first
+    finally:
+        srv.stop()
+
+
+def test_model_stays_loaded_between_pictures(monkeypatch, tmp_path):
+    srv = _server(monkeypatch, tmp_path, GOOD_WORKER)
+    try:
+        assert not images.warm()
+        images.generate(["one"])
+        pid = srv.proc.pid
+        assert images.warm()
+        images.generate(["two", "three"], "9:16")
+        assert srv.proc.pid == pid                          # same process: the model was not loaded again
+        assert "INFO jobs 2" in (tmp_path / "logs" / "picture_creator.log").read_text()
+        assert (tmp_path / "ov_cache").is_dir()
+    finally:
+        srv.stop()
+    assert not images.warm()
 
 
 def test_check_when_not_installed(monkeypatch):
@@ -119,15 +182,60 @@ def test_draw_sizes_are_multiples_of_64_and_pictures_keep_their_shape(monkeypatc
         assert dw % 64 == 0 and dh % 64 == 0 and dw >= w and dh >= h and dh - h < 64 and dw - w < 64, aspect
     assert images.draw_size(768, 432) == (768, 448)
     # the worker draws 768x448, the app trims to exactly 768x432
-    worker = tmp_path / "w.py"
-    worker.write_text(
-        "import json,sys\nfrom PIL import Image\njob=json.load(open(sys.argv[1]))\n"
-        "assert job['width'] % 64 == 0 and job['height'] % 64 == 0, job\n"
-        "[Image.new('RGB',(job['width'],job['height']),'blue').save(i['out']) for i in job['items']]\n")
-    monkeypatch.setattr(images, "WORKER", worker)
-    monkeypatch.setattr(images, "_python", lambda: sys.executable)
-    monkeypatch.setattr(images, "LOG", tmp_path / "log.txt")
+    srv = _server(monkeypatch, tmp_path, GOOD_WORKER)
     import io
-    for aspect in ("16:9", "9:16", "1:1"):
-        png = images.generate(["x"], aspect)[0]
-        assert Image.open(io.BytesIO(png)).size == images.SIZES[aspect]
+    try:
+        for aspect in ("16:9", "9:16", "1:1"):
+            png = images.generate(["x"], aspect)[0]
+            assert Image.open(io.BytesIO(png)).size == images.SIZES[aspect]
+    finally:
+        srv.stop()
+
+
+def test_serve_mode_reuses_the_model_and_only_reshapes(monkeypatch, tmp_path):
+    calls = fake_stack(monkeypatch)
+    state = {}
+    image_worker.run(_job(tmp_path, 1), state)
+    image_worker.run(_job(tmp_path, 1), state)              # same size: nothing to load
+    job = _job(tmp_path, 1)
+    job["width"], job["height"] = 128, 64
+    image_worker.run(job, state)                            # new size: re-shape only
+    assert [c for c in calls if c[0] == "load"] == [("load", False)]
+    assert calls.count(("compile", "GPU")) == 2 and state["size"] == (128, 64)
+
+
+def test_missing_time_cond_proj_dim_is_filled_in_from_the_model(capsys):
+    """optimum-intel sets time_cond_proj_dim=None for older LCM exports; diffusers then fails with
+    'NoneType // int'. The worker reads the width of the model's timestep_cond input instead."""
+    class Dim:
+        is_static = True
+
+        def get_length(self):
+            return 256
+
+    class Inp:
+        def __init__(self, name):
+            self.name = name
+
+        def get_names(self):
+            return {self.name}
+
+        def get_partial_shape(self):
+            return [None, Dim()]
+
+    class Unet:
+        def __init__(self):
+            self.config = types.SimpleNamespace(time_cond_proj_dim=None)
+            self.model = types.SimpleNamespace(inputs=[Inp("sample"), Inp("timestep_cond")])
+
+        def register_to_config(self, **kw):
+            for k, v in kw.items():
+                setattr(self.config, k, v)
+
+    pipe = types.SimpleNamespace(unet=Unet())
+    image_worker.fix_lcm(pipe)
+    assert pipe.unet.config.time_cond_proj_dim == 256 and "time_cond_proj_dim to 256" in capsys.readouterr().out
+    pipe.unet.config.time_cond_proj_dim = 512
+    image_worker.fix_lcm(pipe)                          # a model that has it keeps its own value
+    assert pipe.unet.config.time_cond_proj_dim == 512
+    image_worker.fix_lcm(types.SimpleNamespace())       # pipelines without a UNet are left alone

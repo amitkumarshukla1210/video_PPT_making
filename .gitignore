@@ -30,3 +30,5 @@ models/thumbs/
 models/library/
 models/previews/
 my_media/
+models/ov_cache/
+models/logs/

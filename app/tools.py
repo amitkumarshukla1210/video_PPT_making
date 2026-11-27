@@ -154,7 +154,8 @@ def create_images(prompt, style="none", aspect="16:9", n=1, progress=lambda f, m
     if extra:
         full = f"{full}, {extra}"
     n = max(1, min(8, int(n or 1)))
-    progress(0.02, f"Loading the picture model for {n} picture(s)")
+    progress(0.02, f"Drawing {n} picture(s)…" if images.warm() else
+             "Starting the picture creator (about a minute; the very first time on this laptop 2–3 minutes)")
     pngs = images.generate([full] * n, aspect, progress=lambda d, t: progress(d / max(t, 1), f"Picture {min(d + 1, t)} of {t}"))
     names = []
     for png in pngs:

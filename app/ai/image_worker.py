@@ -28,8 +28,29 @@ def say(msg):
     print(msg, flush=True)
 
 
-def load(model, width, height, prefer_gpu=True):
-    """Load and compile the pipeline: graphics card first, processor (CPU) if that fails."""
+def fix_lcm(pipe):
+    """Older OpenVINO exports of LCM models have no `time_cond_proj_dim` in the UNet config; optimum-intel then
+    sets it to None and drawing fails ("NoneType // int" in get_guidance_scale_embedding). The value is the width
+    of the model's `timestep_cond` input (256 for LCM DreamShaper): read it from the model, set it in the config."""
+    unet = getattr(pipe, "unet", None)
+    if unet is None or getattr(unet.config, "time_cond_proj_dim", None):
+        return
+    dim = 256
+    try:
+        for inp in unet.model.inputs:
+            if "timestep_cond" in inp.get_names():
+                last = inp.get_partial_shape()[-1]
+                if last.is_static:
+                    dim = last.get_length()
+    except Exception:                                # noqa: BLE001 — keep the LCM default
+        pass
+    unet.register_to_config(time_cond_proj_dim=dim)
+    say(f"INFO set the missing time_cond_proj_dim to {dim}")
+
+
+def load(model, width, height, prefer_gpu=True, cache=""):
+    """Load and compile the pipeline: graphics card first, processor (CPU) if that fails.
+    cache = folder where OpenVINO keeps the compiled model, so the next start takes seconds, not minutes."""
     from optimum.intel import OVLatentConsistencyModelPipeline
     import openvino as ov
     devices = ov.Core().available_devices
@@ -39,7 +60,9 @@ def load(model, width, height, prefer_gpu=True):
     for dev in tries:
         try:
             t = time.time()
-            pipe = OVLatentConsistencyModelPipeline.from_pretrained(model, ov_config={"CACHE_DIR": ""}, compile=False)
+            pipe = OVLatentConsistencyModelPipeline.from_pretrained(model, ov_config={"CACHE_DIR": cache or ""},
+                                                                    compile=False)
+            fix_lcm(pipe)
             if dev != "CPU":
                 pipe.to(dev)
             pipe.reshape(batch_size=1, height=height, width=width, num_images_per_prompt=1)
@@ -59,23 +82,55 @@ def make(pipe, prompt, width, height, steps, seed):
                 num_inference_steps=int(steps or 4), guidance_scale=8.0, generator=gen).images[0]
 
 
-def run(job):
+def run(job, state=None):
+    """Make the pictures of one job. With `state` (the --serve mode) the loaded model is kept for the next job;
+    only a new picture size needs a (cached, quick) re-compile."""
     compat()
+    state = state if state is not None else {}
     w, h = (max(64, -(-int(v) // 64) * 64) for v in (job["width"], job["height"]))   # the model needs multiples of 64
-    pipe, dev = load(job["model"], w, h)
+    cache = job.get("cache", "")
+    if state.get("pipe") is None or state.get("model") != job["model"]:
+        state["pipe"], state["dev"] = load(job["model"], w, h, cache=cache)
+        state.update(model=job["model"], size=(w, h))
+    elif state.get("size") != (w, h):
+        t = time.time()
+        state["pipe"].reshape(batch_size=1, height=h, width=w, num_images_per_prompt=1)
+        state["pipe"].compile()
+        state["size"] = (w, h)
+        say(f"INFO re-shaped to {w}x{h} in {time.time() - t:.0f}s")
     items = job["items"]
     for n, it in enumerate(items):
         seed = int(job["seed"]) + n if job.get("seed") is not None else None
         try:
-            img = make(pipe, it["prompt"], w, h, job.get("steps"), seed)
+            img = make(state["pipe"], it["prompt"], w, h, job.get("steps"), seed)
         except Exception as e:                       # noqa: BLE001 — the graphics card failed while drawing
-            if dev == "CPU":
+            if state["dev"] == "CPU":
                 raise
-            say(f"WARN drawing on {dev} failed ({type(e).__name__}: {str(e)[:200]}); switching to CPU")
-            pipe, dev = load(job["model"], w, h, prefer_gpu=False)
-            img = make(pipe, it["prompt"], w, h, job.get("steps"), seed)
+            say(f"WARN drawing on {state['dev']} failed ({type(e).__name__}: {str(e)[:200]}); switching to CPU")
+            state["pipe"], state["dev"] = load(job["model"], w, h, prefer_gpu=False, cache=cache)
+            img = make(state["pipe"], it["prompt"], w, h, job.get("steps"), seed)
         img.save(it["out"])
         say(f"PROGRESS {n + 1} {len(items)}")
+
+
+def serve():
+    """Stay running: one JSON job per line on stdin; answers with PROGRESS lines, then DONE or ERROR, then END.
+    Stops on {"cmd": "quit"} or when the app closes (stdin ends)."""
+    state = {}
+    for raw in sys.stdin:
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            job = json.loads(raw)
+            if job.get("cmd") == "quit":
+                break
+            run(job, state)
+            say("DONE")
+        except Exception as e:                       # noqa: BLE001 — report, keep serving
+            traceback.print_exc(file=sys.stdout)
+            say(f"ERROR {type(e).__name__}: {e}")
+        say("END")
 
 
 def check(model):
@@ -89,7 +144,7 @@ def check(model):
             say(f"CHECK {pkg} NOT INSTALLED")
     compat()
     t = time.time()
-    pipe, dev = load(model, 256, 256)
+    pipe, dev = load(model, 256, 256, cache=sys.argv[3] if len(sys.argv) > 3 else "")
     img = make(pipe, "a red apple on a wooden table", 256, 256, 2, 1)
     say(f"CHECK test picture {img.size[0]}x{img.size[1]} on {dev} in {time.time() - t:.0f}s")
     say("CHECK OK — the picture creator works")
@@ -97,6 +152,9 @@ def check(model):
 
 def main():
     try:
+        if sys.argv[1] == "--serve":
+            serve()
+            return
         if sys.argv[1] == "--check":
             check(sys.argv[2])
         else:

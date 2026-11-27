@@ -6,6 +6,17 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.9.3 — 2026-11-27
+- **The picture creator is much faster after the first picture.**
+  - It used to load and prepare the model for the graphics card on every click (1–2 minutes each time).
+  - Now the prepared model is saved in `models\ov_cache`, so later starts take seconds.
+  - The picture creator also stays running after the first picture, so later pictures only draw, which takes a few
+    seconds each. It closes itself after 15 minutes of not being used, to free memory.
+- The progress text now says whether the picture creator is starting or already drawing.
+- **Fix: drawing failed with "unsupported operand type(s) for //: 'NoneType' and 'int'".** The picture model was
+  exported with an older tool and lacks one setting (`time_cond_proj_dim`). The picture creator now reads it from
+  the model itself (256) before drawing.
+
 ## 1.9.2 — 2026-11-27
 - **Fix: the picture creator failed with "Shape inference … Concat … [2,1280,28,48] [2,640,27,48]".** Pictures were
   drawn at 768×432, but this model only works with sizes in multiples of 64. They are now drawn at 768×448 (and

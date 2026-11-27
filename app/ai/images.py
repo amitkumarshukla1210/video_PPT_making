@@ -2,9 +2,11 @@
 OpenVINO can, otherwise the CPU. Runs in its own environment (.venv-image), installed with
 install_once.bat images. Model: rupeshs/LCM-dreamshaper-v7-openvino (CreativeML OpenRAIL-M:
 commercial use allowed, with the licence's use restrictions)."""
+import atexit
 import json
 import os
 import subprocess
+import threading
 import sys
 import tempfile
 from pathlib import Path
@@ -83,19 +85,97 @@ def _explain(log):
     return "\n".join(dict.fromkeys(err[-4:] + tail)) + f"\n\nFull log: {LOG}"
 
 
+CACHE = ROOT / "models" / "ov_cache"       # OpenVINO keeps the compiled model here: next start in seconds
+IDLE_SECONDS = 15 * 60                     # the picture creator closes itself after this long unused
+
+
+class _Server:
+    """The picture creator kept running between requests, so the model is loaded only once."""
+
+    def __init__(self):
+        self.proc = None
+        self.lock = threading.Lock()
+        self.timer = None
+
+    def _start(self):
+        env = {**os.environ, "HF_HUB_OFFLINE": "1", "PYTHONIOENCODING": "utf-8"}
+        self.proc = subprocess.Popen([_python() or sys.executable, str(WORKER), "--serve"], stdin=subprocess.PIPE,
+                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8",
+                                     errors="replace", env=env, bufsize=1)
+
+    def alive(self):
+        return self.proc is not None and self.proc.poll() is None
+
+    def stop(self):
+        if self.alive():
+            try:
+                self.proc.stdin.write('{"cmd": "quit"}\n')
+                self.proc.stdin.flush()
+                self.proc.wait(timeout=10)
+            except Exception:
+                self.proc.kill()
+        self.proc = None
+
+    def _idle(self):
+        with self.lock:
+            self.stop()
+
+    def job(self, job, progress):
+        with self.lock:
+            if self.timer:
+                self.timer.cancel()
+            fresh = not self.alive()
+            if fresh:
+                self._start()
+            log = []
+            try:
+                self.proc.stdin.write(json.dumps(job) + "\n")
+                self.proc.stdin.flush()
+                for line in self.proc.stdout:
+                    log.append(line)
+                    if line.startswith("PROGRESS"):
+                        _, d, t = line.split()
+                        progress(int(d), int(t))
+                    elif line.startswith("INFO model ready"):
+                        progress(0, len(job["items"]))
+                    if line.strip() == "END":
+                        break
+            except (BrokenPipeError, OSError):
+                pass
+            if not log or log[-1].strip() != "END":          # the process died
+                self.stop()
+                log.append("ERROR the picture creator stopped unexpectedly\n")
+            LOG.parent.mkdir(parents=True, exist_ok=True)
+            LOG.write_text("".join(log), encoding="utf-8")
+            self.timer = threading.Timer(IDLE_SECONDS, self._idle)
+            self.timer.daemon = True
+            self.timer.start()
+            return any(l.strip() == "DONE" for l in log), log
+
+
+SERVER = _Server()
+atexit.register(SERVER.stop)
+
+
 def generate(prompts, aspect="16:9", seed=None, steps=4, progress=lambda done, total: None):
-    """Make one PNG per prompt. Returns a list of PNG bytes."""
+    """Make one PNG per prompt. Returns a list of PNG bytes. The first picture after starting the app loads the
+    model (about a minute, more the very first time); later ones only draw."""
     w, h = SIZES.get(aspect, SIZES["16:9"])
     dw, dh = draw_size(w, h)
     with tempfile.TemporaryDirectory() as td:
         outs = [str(Path(td) / f"img_{i}.png") for i in range(len(prompts))]
-        job = Path(td) / "job.json"
-        job.write_text(json.dumps({"model": MODEL, "width": dw, "height": dh, "steps": steps, "seed": seed,
-                                   "items": [{"prompt": p, "out": o} for p, o in zip(prompts, outs)]}), encoding="utf-8")
-        code, log = _run_worker([str(job)], progress)
-        if code != 0:
+        CACHE.mkdir(parents=True, exist_ok=True)
+        ok, log = SERVER.job({"model": MODEL, "width": dw, "height": dh, "steps": steps, "seed": seed,
+                              "cache": str(CACHE), "items": [{"prompt": p, "out": o} for p, o in zip(prompts, outs)]},
+                             progress)
+        if not ok:
             raise RuntimeError("Picture creation failed.\n" + _explain(log))
         return [_trim(Path(o).read_bytes(), w, h) for o in outs]
+
+
+def warm():
+    """True when the model is already loaded (the next picture starts at once)."""
+    return SERVER.alive()
 
 
 def check():
@@ -106,7 +186,10 @@ def check():
             f"Model files downloaded: {'yes' if _model_cached() else 'NO (run install_once.bat images)'}"]
     if not _python():
         return {"ok": False, "report": "\n".join(head)}
-    code, log = _run_worker(["--check", MODEL], timeout=1800)
+    with SERVER.lock:                      # free the memory of a running picture creator before testing
+        SERVER.stop()
+    CACHE.mkdir(parents=True, exist_ok=True)
+    code, log = _run_worker(["--check", MODEL, str(CACHE)], timeout=1800)
     lines = [l.rstrip() for l in log if l.startswith(("CHECK", "INFO", "WARN", "ERROR"))] or [l.rstrip() for l in log[-15:]]
     if code != 0:
         lines += ["", "Last lines:"] + [l.rstrip() for l in log[-8:]]
