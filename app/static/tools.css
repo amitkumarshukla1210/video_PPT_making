@@ -36,3 +36,5 @@
 .ref-body p { margin: 4px 0; font-size: 12.5px; color: var(--ink-soft); }
 .ref-body code { font-size: 12px; }
 .visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.tool-tabs a b i { display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 6px; border-radius: 50%; background: var(--blue-soft); color: var(--brand-dark); font-style: normal; font-size: 12px; }
+.tool-tabs a.on b i { background: var(--brand); color: #fff; }

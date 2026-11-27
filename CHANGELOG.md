@@ -11,6 +11,8 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
   of the `transformers` package removed that name, but the picture model still uses it.
   - The app now maps it to its replacement, `CLIPImageProcessor`.
   - The picture creator's install now keeps `transformers` below 5. `update_windows.bat` does this for you.
+- Tools are now in the order a film is made: **1 Character → 2 Image → 3 World → 4 Audio → 5 Video**, in the
+  tabs and in the left menu. Tools opens on Character.
 - Pictures are no longer pushed towards "corporate photography". Your prompt and the chosen style decide the look
   (film characters, mythology, anime…).
 

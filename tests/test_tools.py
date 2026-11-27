@@ -126,3 +126,12 @@ def test_picture_worker_works_with_transformers_5(monkeypatch):
     assert "corporate" not in image_worker.STYLE                 # films are not forced into a corporate look
     req = (Path(__file__).resolve().parent.parent / "requirements-image.txt").read_text()
     assert "transformers>=4.45,<5" in req
+
+
+def test_tools_follow_the_film_order(client):
+    html = client.get("/tools").get_data(as_text=True)
+    assert 'data-tool="character"' in html                         # Tools opens on step 1
+    order = [html.index(f'data-t="{t}"') for t in ("character", "image", "world", "audio", "video")]
+    assert order == sorted(order)
+    side = [html.index(f'href="/tools/{t}"') for t in ("character", "image", "world", "audio", "video")]
+    assert side == sorted(side)
