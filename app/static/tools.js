@@ -2,6 +2,8 @@
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 let st = null, pickedImage = null;
+let imgFilter = new URLSearchParams(location.search).get("tag") || "";      // "", "@Name" or "untagged"
+let viewList = [], viewAt = 0;                                                // full-screen viewer
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function toast(msg, err = false) {
@@ -57,15 +59,56 @@ function mediaRow(kind, f) {
 function renderMedia() {
   $("#videoList").innerHTML = st.media.videos.map((f) => mediaRow("videos", f)).join("") || '<p class="muted">No clips yet.</p>';
   $("#audioList").innerHTML = st.media.audio.map((f) => mediaRow("audio", f)).join("") || '<p class="muted">No audio yet.</p>';
-  $("#imageList").innerHTML = st.media.images.map((f) => `<figure class="pic">
-      <img src="${f.url}" alt="" loading="lazy"><figcaption>
+  const refsAll = [...st.characters, ...st.worlds];
+  const shown = filteredImages();
+  for (const box of ["#imgFilters", "#clipFilters"]) $(box).innerHTML = filterChips();
+  $("#imageList").innerHTML = shown.map((f) => {
+    const mine = refsAll.filter((r) => f.tags.includes(r.tag));
+    const addable = refsAll.filter((r) => !f.tags.includes(r.tag));
+    return `<figure class="pic">
+      <img src="${f.url}" alt="" loading="lazy" data-view="${esc(f.name)}" title="Click to see it full screen">
+      <div class="pic-tags">${f.tags.map((t) => `<span class="tag">${esc(t)}<button data-untag="${esc(f.name)}|${esc(t)}" aria-label="Remove ${esc(t)}">✕</button></span>`).join("")}
+        ${addable.length ? `<select data-addtag="${esc(f.name)}" aria-label="Add a character or place"><option value="">＋ who / where</option>${addable.map((r) => `<option>${esc(r.tag)}</option>`).join("")}</select>` : ""}</div>
+      <figcaption>
       <button class="btn btn-outline small" data-clip="${esc(f.name)}" title="Make an animated clip">🎬 Clip</button>
-      <a class="btn btn-outline small" href="${f.url}?dl=1">⬇</a>
-      <button class="btn btn-outline small danger" data-del="images/${esc(f.name)}">🗑</button></figcaption></figure>`).join("")
-    || '<p class="muted">No pictures yet.</p>';
-  $("#clipPick").innerHTML = st.media.images.slice(0, 24).map((f) => `<button class="pick${f.name === pickedImage ? " on" : ""}" data-pick="${esc(f.name)}">
-      <img src="${f.url}" alt="" loading="lazy"></button>`).join("") || '<p class="muted">No pictures yet — upload one or create one in Image.</p>';
+      ${mine.length ? `<button class="btn btn-outline small" data-portrait="${esc(f.name)}" title="Use as the main picture of ${esc(mine[0].tag)}">⭐ ${esc(mine[0].tag)}</button>` : ""}
+      <a class="btn btn-outline small" href="${f.url}?dl=1" title="Download">⬇</a>
+      <button class="btn btn-outline small danger" data-del="images/${esc(f.name)}" title="Delete">🗑</button></figcaption></figure>`;
+  }).join("") || `<p class="muted">${st.media.images.length ? "No pictures with this filter." : "No pictures yet."}</p>`;
+  $("#clipPick").innerHTML = shown.slice(0, 48).map((f) => `<button class="pick${f.name === pickedImage ? " on" : ""}" data-pick="${esc(f.name)}" title="${esc(f.tags.join(" ") || f.name)}">
+      <img src="${f.url}" alt="" loading="lazy">${f.tags.length ? `<span class="pick-tag">${esc(f.tags.join(" "))}</span>` : ""}</button>`).join("")
+    || '<p class="muted">No pictures yet — upload one or create one in Image.</p>';
 }
+
+function filteredImages() {
+  return st.media.images.filter((f) => !imgFilter || (imgFilter === "untagged" ? !f.tags.length : f.tags.includes(imgFilter)));
+}
+function filterChips() {
+  const tags = [...st.characters, ...st.worlds].map((r) => r.tag);
+  const count = (t) => st.media.images.filter((f) => (t === "untagged" ? !f.tags.length : f.tags.includes(t))).length;
+  const chip = (v, label, n) => `<button class="chip small${imgFilter === v ? " on" : ""}" data-filter="${esc(v)}">${esc(label)} <small>${n}</small></button>`;
+  return chip("", "All", st.media.images.length) + tags.map((t) => chip(t, t, count(t))).join("") + chip("untagged", "No name yet", count("untagged"));
+}
+
+// ---------- full-screen picture viewer ----------
+function openViewer(list, at) {
+  viewList = list; viewAt = Math.max(0, at);
+  showViewer();
+  $("#viewer").classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+}
+function showViewer() {
+  const f = viewList[viewAt]; if (!f) return;
+  $("#viewImg").src = f.url;
+  $("#viewTags").innerHTML = (f.tags || []).map((t) => `<span class="tag">${esc(t)}</span>`).join("");
+  $("#viewText").textContent = [f.prompt, f.date].filter(Boolean).join(" · ");
+  $("#viewDl").href = f.url + "?dl=1";
+  $("#viewCount").textContent = viewList.length > 1 ? `${viewAt + 1} / ${viewList.length}` : "";
+  $("#viewPrev").classList.toggle("hidden", viewList.length < 2);
+  $("#viewNext").classList.toggle("hidden", viewList.length < 2);
+}
+function moveViewer(step) { viewAt = (viewAt + step + viewList.length) % viewList.length; showViewer(); }
+function closeViewer() { $("#viewer").classList.add("hidden"); document.body.style.overflow = ""; }
 
 // ---------- Video ----------
 async function makeClip() {
@@ -155,9 +198,10 @@ function renderRefs(kind) {
     <div class="row wrap"><button class="btn btn-primary" data-save="${kind}">💾 Save ${R.one}</button><button class="btn btn-outline" data-new="${kind}">New</button><span class="muted" id="${kind}Status"></span></div>
     <div class="progress hidden" id="${kind}Prog"><div class="bar"><div></div></div><p class="muted"></p></div>
     <div class="ref-grid">${list.map((i) => `<article class="ref">
-      <div class="ref-pic">${i.image ? `<img src="/media/images/${esc(i.image)}" alt="">` : `<span>${kind === "worlds" ? "🌍" : "🧑"}</span>`}</div>
+      <div class="ref-pic">${i.image ? `<img src="/media/images/${esc(i.image)}" alt="" data-viewurl="/media/images/${esc(i.image)}" data-viewtag="${esc(i.tag)}" title="Click to see it full screen">` : `<span>${kind === "worlds" ? "🌍" : "🧑"}</span>`}</div>
       <div class="ref-body"><b>${esc(i.name)}</b> <code>${esc(i.tag)}</code><p>${esc(i.description)}</p>
       ${i.voice ? `<p class="muted">🎙 ${esc(i.voice.engine)} · ${esc(i.voice.voice || "default")}</p>` : ""}
+      <p><a href="/tools/image?tag=${encodeURIComponent(i.tag)}">🖼 ${i.pictures || 0} picture${i.pictures === 1 ? "" : "s"} of ${esc(i.tag)}</a></p>
       <div class="row wrap"><button class="btn btn-outline small" data-pic="${kind}/${i.id}" ${st.images.available ? "" : "disabled title='Picture creator not installed'"}>${R.pic}</button>
       <button class="btn btn-outline small" data-edit="${kind}/${i.id}">✎ Edit</button>
       <button class="btn btn-outline small" data-copy="${esc(i.tag)}">Copy ${esc(i.tag)}</button>
@@ -231,11 +275,48 @@ async function init() {
     if (c?.voice) { fillVoice(c.voice.engine, c.voice.lang, c.voice.voice); $("#vSpeed").value = c.voice.speed || 1; }
   };
 
+  document.addEventListener("change", async (e) => {
+    const name = e.target.dataset?.addtag; if (!name || !e.target.value) return;
+    const f = st.media.images.find((x) => x.name === name);
+    await api(`/api/tools/media/images/${encodeURIComponent(name)}/tags`, { method: "PUT", json: { tags: [...f.tags, e.target.value] } })
+      .catch((err) => toast(err.message, true));
+    await refresh(); renderMedia(); renderRefs("characters"); renderRefs("worlds");
+  });
+  $("#viewClose").onclick = closeViewer;
+  $("#viewPrev").onclick = () => moveViewer(-1);
+  $("#viewNext").onclick = () => moveViewer(1);
+  $("#viewer").addEventListener("click", (e) => { if (e.target.id === "viewer" || e.target.classList.contains("view-stage")) closeViewer(); });
+  document.addEventListener("keydown", (e) => {
+    if ($("#viewer").classList.contains("hidden")) return;
+    if (e.key === "Escape") closeViewer();
+    else if (e.key === "ArrowLeft") moveViewer(-1);
+    else if (e.key === "ArrowRight") moveViewer(1);
+  });
   document.addEventListener("click", async (e) => {
+    const v = e.target.closest("[data-view], [data-viewurl]");
+    if (v) {
+      if (v.dataset.view) { const list = filteredImages(); return openViewer(list, list.findIndex((f) => f.name === v.dataset.view)); }
+      const f = st.media.images.find((x) => v.dataset.viewurl.endsWith("/" + x.name));
+      return openViewer([f || { url: v.dataset.viewurl, tags: [v.dataset.viewtag] }], 0);
+    }
     const t = e.target.closest("button, [data-pick]"); if (!t) return;
     const d = t.dataset;
     try {
       if (d.pick) { pickedImage = d.pick; renderMedia(); }
+      else if (d.filter !== undefined) {
+        imgFilter = d.filter; renderMedia();
+        history.replaceState(null, "", location.pathname + (imgFilter ? `?tag=${encodeURIComponent(imgFilter)}` : ""));
+      } else if (d.untag) {
+        const [name, tag] = d.untag.split("|");
+        const f = st.media.images.find((x) => x.name === name);
+        await api(`/api/tools/media/images/${encodeURIComponent(name)}/tags`, { method: "PUT", json: { tags: f.tags.filter((x) => x !== tag) } });
+        await refresh(); renderMedia(); renderRefs("characters"); renderRefs("worlds");
+      } else if (d.portrait) {
+        const f = st.media.images.find((x) => x.name === d.portrait);
+        const r = [...st.characters.map((c) => ["characters", c]), ...st.worlds.map((w) => ["worlds", w])].find(([, x]) => f.tags.includes(x.tag));
+        await api(`/api/tools/${r[0]}/${r[1].id}/portrait`, { method: "POST", json: { image: f.name } });
+        await refresh(); renderRefs(r[0]); renderMedia(); toast(`Now the main picture of ${r[1].tag}`);
+      }
       else if (d.clip) { pickedImage = d.clip; history.replaceState(null, "", "/tools/video"); show("video"); renderMedia(); window.scrollTo({ top: 0 }); }
       else if (d.ins) { const ta = $("#imgPrompt"); ta.value = (ta.value + " " + d.ins + " ").replace(/^\s+/, ""); ta.focus(); }
       else if (d.del) {

@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/static/dtc-theme.css">
 <link rel="stylesheet" href="/static/style.css">
 <link rel="stylesheet" href="/static/make.css">
+<link rel="stylesheet" href="/static/tools.css">
 </head>
 <body>
 {% include '_sidebar.html' %}
@@ -159,6 +160,14 @@
     <div id="result" class="result hidden"></div>
   </section>
 </main>
+<div id="picker" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
+  <div class="modal-box picker-box">
+    <div class="step-head"><h3 id="pickerTitle">Choose a picture for this scene</h3><button class="btn btn-outline small" id="pickerClose">✕ Close</button></div>
+    <p class="muted">Your pictures from Tools › Image, by character and place.</p>
+    <div class="refs-row" id="pickerFilters"></div>
+    <div class="pick-grid" id="pickerGrid"></div>
+  </div>
+</div>
 <footer><div class="footnote">© Design to Cost · Make a video · version {{ version }} · runs offline on this laptop</div></footer>
 <div id="toast" class="toast hidden"></div>
 <script src="/static/make.js"></script>

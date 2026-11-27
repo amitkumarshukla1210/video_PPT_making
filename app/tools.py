@@ -50,13 +50,86 @@ def safe_name(name):
     return name
 
 
+# ---------- picture index: which characters / places each picture shows (my_media/index.json) ----------
+def _index_file():
+    MEDIA.mkdir(parents=True, exist_ok=True)
+    return MEDIA / "index.json"
+
+
+def _index():
+    f = _index_file()
+    try:
+        return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+    except ValueError:
+        return {}
+
+
+def _save_index(idx):
+    f = _index_file()
+    tmp = f.with_suffix(".tmp")
+    tmp.write_text(json.dumps(idx, indent=1, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(f)
+
+
+def all_tags():
+    return [i["tag"] for k in REF_KINDS for i in refs(k)]
+
+
+def tags_in(text):
+    """The saved @Name / @Place tags used in a text, in order of appearance."""
+    known = {t.lower(): t for t in all_tags()}
+    out = []
+    for m in re.findall(r"@\w+", text or ""):
+        t = known.get(m.lower())
+        if t and t not in out:
+            out.append(t)
+    return out
+
+
+def _name_part(tags):
+    """'Shurpanakha' or 'Ram-Sita' for file names (letters and digits only)."""
+    return "-".join(re.sub(r"[^\w]", "", t.lstrip("@")) for t in tags[:3]) or "img"
+
+
+def picture_info(name):
+    return _index().get(name, {})
+
+
+def set_picture(name, **info):
+    idx = _index()
+    entry = idx.setdefault(name, {"created": time.strftime("%Y-%m-%d %H:%M")})
+    if "tags" in info:
+        known = {t.lower(): t for t in all_tags()}
+        info["tags"] = [known.get(str(t).lower(), str(t)) for t in info["tags"] if str(t).strip()]
+    entry.update(info)
+    _save_index(idx)
+    return entry
+
+
 def media_list(kind):
     if kind not in KINDS:
         raise ValueError(kind)
     files = sorted(_dir(kind).glob("*"), key=lambda f: f.stat().st_mtime, reverse=True)
-    return [{"name": f.name, "url": f"/media/{kind}/{f.name}", "size_kb": round(f.stat().st_size / 1024),
-             "date": time.strftime("%Y-%m-%d %H:%M", time.localtime(f.stat().st_mtime))}
-            for f in files if f.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".wav", ".mp3", ".mp4")]
+    idx = _index() if kind == "images" else {}
+    out = []
+    for f in files:
+        if f.suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp", ".wav", ".mp3", ".mp4"):
+            continue
+        item = {"name": f.name, "url": f"/media/{kind}/{f.name}", "size_kb": round(f.stat().st_size / 1024),
+                "date": time.strftime("%Y-%m-%d %H:%M", time.localtime(f.stat().st_mtime))}
+        if kind == "images":
+            info = idx.get(f.name, {})
+            item.update(tags=info.get("tags", []), prompt=info.get("prompt", ""))
+        out.append(item)
+    return out
+
+
+def delete_media(kind, name):
+    media_path(kind, name).unlink()
+    if kind == "images":
+        idx = _index()
+        if idx.pop(name, None) is not None:
+            _save_index(idx)
 
 
 def media_path(kind, name):
@@ -84,6 +157,15 @@ def refs(kind):
         return []
 
 
+def refs_with_counts(kind):
+    """The saved characters / worlds, each with how many pictures are tagged with it."""
+    counts = {}
+    for info in _index().values():
+        for t in info.get("tags", []):
+            counts[t.lower()] = counts.get(t.lower(), 0) + 1
+    return [dict(i, pictures=counts.get(i["tag"].lower(), 0)) for i in refs(kind)]
+
+
 def _save_refs(kind, items):
     f = _ref_file(kind)
     tmp = f.with_suffix(".tmp")
@@ -107,7 +189,13 @@ def save_ref(kind, name, description, voice=None, image=None, rid=None):
     if not item:
         item = {"id": uuid.uuid4().hex[:8], "created": time.strftime("%Y-%m-%d %H:%M")}
         items.append(item)
+    old_tag = item.get("tag")
     item.update(name=name, tag=tag, description=description)
+    if old_tag and old_tag != tag:                  # renamed: its pictures follow
+        idx = _index()
+        for info in idx.values():
+            info["tags"] = [tag if t == old_tag else t for t in info.get("tags", [])]
+        _save_index(idx)
     if voice is not None:
         item["voice"] = voice
     if image is not None:
@@ -145,10 +233,14 @@ def expand(text):
 
 
 # ---------- Image ----------
-def create_images(prompt, style="none", aspect="16:9", n=1, progress=lambda f, m: None, prefix="img"):
+def create_images(prompt, style="none", aspect="16:9", n=1, progress=lambda f, m: None, prefix=None, tags=None):
+    """Pictures from a prompt. They are named after the characters / places in it (Shurpanakha_….png) and
+    tagged with them, so they can be found and reused later."""
     from .ai import images
     if not images.status()["available"]:
         raise RuntimeError(images.status()["info"])
+    tags = list(tags) if tags is not None else tags_in(prompt)
+    prefix = prefix or _name_part(tags)
     full = expand(prompt.strip())
     extra = STYLES.get(style, STYLES["none"])[1]
     if extra:
@@ -161,16 +253,19 @@ def create_images(prompt, style="none", aspect="16:9", n=1, progress=lambda f, m
     for png in pngs:
         name = _stamp(prefix, ".png")
         (_dir("images") / name).write_bytes(png)
+        set_picture(name, tags=tags, prompt=prompt.strip()[:600], style=style, aspect=aspect)
         names.append(name)
-    return {"images": names, "prompt": full}
+    return {"images": names, "prompt": full, "tags": tags}
 
 
 def save_upload(file_storage):
     ext = Path(file_storage.filename or "").suffix.lower()
     if ext not in (".png", ".jpg", ".jpeg", ".webp"):
         raise ValueError("Use a PNG, JPG or WEBP picture.")
-    name = _stamp("upload", ext)
+    stem = re.sub(r"[^\w-]", "", Path(file_storage.filename or "").stem)[:30] or "upload"
+    name = _stamp(stem, ext)
     file_storage.save(_dir("images") / name)
+    set_picture(name, tags=[], prompt="")
     return name
 
 

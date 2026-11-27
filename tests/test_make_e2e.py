@@ -137,3 +137,51 @@ def test_viral_preset_opens_tools_video(page):
     p.wait_for_selector("body[data-ready=true]")
     assert p.input_value("#clipFx") == "polaroid" and p.input_value("#clipLook") == "warm"
     assert p.input_value("#clipTitle") == "Best day ever"
+
+
+def test_my_pictures_tags_viewer_and_scene_picker(page, tmp_path, monkeypatch):
+    from PIL import Image as PILImage
+    from app import tools
+    monkeypatch.setattr(tools, "MEDIA", tmp_path / "media")
+    tools.save_ref("characters", "Shurpanakha", "glamorous woman")
+    tools.save_ref("characters", "Ram", "prince with a bow")
+    names = []
+    for k, color in enumerate(("#a0522d", "#1f5fa8", "#2e8b57")):
+        name = f"pic{k}.png"
+        PILImage.new("RGB", (768, 432), color).save(tools._dir("images") / name)
+        tools.set_picture(name, tags=["@Shurpanakha"] if k < 2 else [], prompt=f"prompt {k}")
+        names.append(name)
+    p = page
+    p.goto(p.base + "/tools/image")
+    p.wait_for_selector("body[data-ready=true]")
+    assert "@Shurpanakha 2" in p.text_content("#imgFilters") and "No name yet 1" in p.text_content("#imgFilters")
+    p.click("#imgFilters [data-filter='@Shurpanakha']")
+    assert p.locator("#imageList .pic").count() == 2
+    # full screen: click, arrows, Esc
+    p.click("#imageList .pic img >> nth=0")
+    assert p.is_visible("#viewer") and "@Shurpanakha" in p.text_content("#viewTags") and p.text_content("#viewCount") == "1 / 2"
+    p.keyboard.press("ArrowRight")
+    assert p.text_content("#viewCount") == "2 / 2"
+    p.keyboard.press("Escape")
+    assert p.is_hidden("#viewer")
+    # name the untagged picture
+    p.click("#imgFilters [data-filter='untagged']")
+    p.select_option("#imageList select[data-addtag]", "@Ram")
+    p.wait_for_function("() => document.querySelector('#imgFilters').textContent.includes('@Ram 1')")
+    assert tools.picture_info("pic2.png")["tags"] == ["@Ram"]
+    # use a character picture in a scene of Make a video
+    from app import project as P
+    pid = P.new_project("Picker e2e")["id"]
+    try:
+        p.goto(p.base + f"/make?p={pid}&step=2")
+        p.wait_for_selector("#step2:not(.hidden)")
+        p.click(".scene:nth-child(1) [data-mypic]")
+        p.wait_for_selector("#picker:not(.hidden)")
+        p.click("#pickerFilters [data-ptag='@Ram']")
+        assert p.locator("#pickerGrid .pick").count() == 1
+        p.click("#pickerGrid .pick")
+        p.wait_for_selector("#picker.hidden", state="attached")
+        p.wait_for_selector(".scene:nth-child(1) .scene-pic img")
+        assert P.load(pid)["slides"][0]["image"].startswith("uploads/media_")
+    finally:
+        P.delete(pid)

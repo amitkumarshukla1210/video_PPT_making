@@ -6,6 +6,23 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.10.0 — 2026-11-27
+- **Pictures remember who and where they show.**
+  - A picture made with @Shurpanakha in the prompt is saved as `Shurpanakha_….png` and tagged **@Shurpanakha**. A
+    picture with two characters gets both names, for example `Ram-Sita_….png`. Character portraits and world views are
+    named the same way.
+  - Under every picture you can **add** characters or places (＋ who / where) or **remove** them (✕), which also
+    names pictures made earlier.
+  - Buttons above My pictures (All · @Shurpanakha · @Ram · … · No name yet) show one character's pictures.
+  - **⭐ @Name** makes a picture that character's main picture.
+  - Renaming a character updates the tags on its pictures.
+  - Each character card shows "🖼 N pictures of @Name"; click it to see them.
+- **Full-screen view:** click any picture (and character portraits) to see it full screen. Use ‹ › or the arrow keys to
+  flip through, Esc or ✕ to close, and ⬇ to download.
+- **Use your pictures in a video:** in Make a video, step 2, every scene has **🖼 My pictures**. Pick a saved picture,
+  filtered by character, and it becomes that scene's picture.
+- Tools › Video: the picture list can be filtered by character too.
+
 ## 1.9.5 — 2026-11-27
 **The picture creator was tested for real this time.** I downloaded the real model and the same packages your
 laptop uses, and made pictures end to end. That testing found and fixed four more problems:

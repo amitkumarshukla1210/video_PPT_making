@@ -43,6 +43,7 @@
       <div><label for="clipFx">Effect</label><select id="clipFx"></select></div>
     </div>
     <p class="muted">Pick a picture (or upload one). It becomes a short shot: a slow camera push-in, your words rising over it, and music. Use clips in reels or as scenes.</p>
+    <div class="refs-row" id="clipFilters"></div>
     <div class="pick-grid" id="clipPick"></div>
     <div class="row wrap"><label class="btn btn-outline small" for="clipUpload">⬆ Upload a picture</label><input type="file" id="clipUpload" accept="image/*" class="visually-hidden"><a class="btn btn-outline small" href="/tools/image">🖼 Create a picture</a></div>
     <div class="grid-opts">
@@ -83,6 +84,8 @@
     <div class="check-report hidden" id="imgReport"><pre></pre><button class="btn btn-outline small" id="imgCopy">📋 Copy report</button></div>
     <div class="progress hidden" id="imgProg"><div class="bar"><div></div></div><p class="muted"></p></div>
     <h3 class="sub">My pictures</h3>
+    <p class="muted">Pictures are named and tagged after the characters and places in the prompt. Click a picture to see it full screen. Use ＋ to add who or where it shows, and ⭐ to make it a character's main picture.</p>
+    <div class="refs-row" id="imgFilters"></div>
     <div class="pic-grid" id="imageList"></div>
   </section>
 
@@ -114,6 +117,14 @@
   <section class="card tool hidden" id="t-character" data-kind="characters"></section>
   <section class="card tool hidden" id="t-world" data-kind="worlds"></section>
 </main>
+<div id="viewer" class="viewer hidden" role="dialog" aria-modal="true" aria-label="Picture, full screen">
+  <div class="view-stage"><img id="viewImg" alt=""></div>
+  <button class="view-btn view-close" id="viewClose" aria-label="Close (Esc)">✕</button>
+  <button class="view-btn view-prev" id="viewPrev" aria-label="Previous picture (←)">‹</button>
+  <button class="view-btn view-next" id="viewNext" aria-label="Next picture (→)">›</button>
+  <div class="view-bar"><span id="viewTags"></span><span id="viewText"></span><span id="viewCount"></span>
+    <a class="btn btn-primary small" id="viewDl" href="#">⬇ Download</a></div>
+</div>
 <footer><div class="footnote">© Design to Cost · Tools · version {{ version }} · runs offline on this laptop</div></footer>
 <div id="toast" class="toast hidden"></div>
 <script src="/static/tools.js"></script>
