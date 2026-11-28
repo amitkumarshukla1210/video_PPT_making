@@ -26,8 +26,23 @@ async function refresh() { st = await api("/api/tools/state"); }
 async function waitJob(box) {
   const bar = box.querySelector(".bar > div"), text = box.querySelector("p");
   box.classList.remove("hidden");
+  let lost = 0;
   for (;;) {
-    const j = await api("/api/tools/job");
+    let j;
+    try { j = await api("/api/tools/job"); lost = 0; }
+    catch (e) {
+      if (!/fetch|network/i.test(e.message)) throw e;
+      // the app did not answer: the computer may be very busy (the picture model uses a lot of memory). Keep trying.
+      if (++lost > 180) {
+        box.classList.add("hidden");
+        throw new Error("DTC Studio stopped answering. Is the black DTC Studio window still open? If it closed, start it " +
+          "again (start_windows.bat) — the pictures that were finished are saved in My pictures. Then try Fast draft, " +
+          "or fewer pictures at a time, and close other big programs.");
+      }
+      text.textContent = `The app is not answering — the computer is busy. Waiting… (${lost}s)`;
+      await sleep(1000);
+      continue;
+    }
     bar.style.width = (j.state === "done" ? 100 : Math.max(4, (j.fraction || 0) * 100)) + "%";
     text.textContent = j.state === "running" ? `${j.message || j.stage || "Working…"} · ${j.elapsed || 0}s` : "";
     if (j.state === "done") { box.classList.add("hidden"); return j.result; }

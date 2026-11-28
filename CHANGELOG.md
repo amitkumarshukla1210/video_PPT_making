@@ -6,6 +6,15 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.11.1 — 2026-11-28
+- **Film quality: much less strain on the laptop.** The film-quality model now runs at a fixed picture size, like the
+  fast one. On a graphics card it had been drawing at "any size", which is slow and can use so much memory that the
+  app stops answering ("Failed to fetch").
+- **Each picture is saved as soon as it is drawn.** If something goes wrong at picture 3 of 4, pictures 1 and 2 are
+  already in My pictures.
+- **The app waits instead of failing** when it is busy for a while (up to 3 minutes). If it really stopped, the
+  message tells you what to do.
+
 ## 1.11.0 — 2026-11-27
 - **🎬 Film-quality pictures.** A second, bigger picture model (Stable Diffusion XL Lightning, OpenVINO, free for
   commercial use under OpenRAIL++) draws sharp, cinematic 1024-pixel pictures with real light, skin and detail. It is

@@ -95,6 +95,32 @@ def _pipeline(model, cache):
     return pipe, "sd"
 
 
+def reshape(pipe, width, height):
+    """Fix the picture size (static shapes: much less memory and faster, above all on a graphics card).
+    optimum-intel doubles the UNet batch for guidance; SDXL-Lightning draws without guidance, so its UNet is set
+    back to a batch of 1 (otherwise drawing fails: "model input [2,4,72,128] and tensor (1,4,72,128)")."""
+    if getattr(pipe, "dtc_kind", "") != "xl":
+        pipe.reshape(batch_size=1, height=height, width=width, num_images_per_prompt=1)
+        return
+    orig = pipe._reshape_unet
+
+    def batch_one(model, *a, **kw):
+        model = orig(model, *a, **kw)
+        shapes = {}
+        for inp in model.inputs:
+            ps = inp.get_partial_shape()
+            if ps.rank.is_static and ps.rank.get_length() > 1 and inp.get_any_name() != "timestep":
+                ps[0] = 1
+            shapes[inp] = ps
+        model.reshape(shapes)
+        return model
+    pipe._reshape_unet = batch_one
+    try:
+        pipe.reshape(batch_size=1, height=height, width=width, num_images_per_prompt=1)
+    finally:
+        del pipe._reshape_unet
+
+
 def load(model, width, height, prefer_gpu=True, cache=""):
     """Load and compile the pipeline: graphics card first, processor (CPU) if that fails.
     cache = folder where OpenVINO keeps the compiled model, so the next start takes seconds, not minutes."""
@@ -110,8 +136,7 @@ def load(model, width, height, prefer_gpu=True, cache=""):
             pipe.dtc_kind = kind
             if dev != "CPU":
                 pipe.to(dev)
-            if kind != "xl":     # XL: static reshape assumes a guidance batch of 2; it runs fine with any size
-                pipe.reshape(batch_size=1, height=height, width=width, num_images_per_prompt=1)
+            reshape(pipe, width, height)
             pipe.compile()
             say(f"INFO model ready on {dev} in {time.time() - t:.0f}s ({kind} pipeline)")
             return pipe, dev
@@ -140,9 +165,9 @@ def run(job, state=None):
     if state.get("pipe") is None or state.get("model") != job["model"]:
         state["pipe"], state["dev"] = load(job["model"], w, h, cache=cache)
         state.update(model=job["model"], size=(w, h))
-    elif state.get("size") != (w, h) and getattr(state["pipe"], "dtc_kind", "") != "xl":
+    elif state.get("size") != (w, h):
         t = time.time()
-        state["pipe"].reshape(batch_size=1, height=h, width=w, num_images_per_prompt=1)
+        reshape(state["pipe"], w, h)
         state["pipe"].compile()
         state["size"] = (w, h)
         say(f"INFO re-shaped to {w}x{h} in {time.time() - t:.0f}s")
