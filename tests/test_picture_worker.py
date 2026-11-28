@@ -380,3 +380,30 @@ def test_prompt_keeps_the_subject_first_and_the_quality_words_in_reach():
     long = tools.build_prompt(" ".join(f"w{i}" for i in range(200)), "photo")
     assert len(long.split(", ")[0].split()) == tools.SUBJECT_WORDS and long.endswith("sharp focus, cinematic film still, photorealistic, detailed face")
     assert tools.build_prompt("a cat", "anime") == "a cat, anime illustration, clean lines, vibrant colours"
+
+
+def test_film_quality_decoder_runs_in_full_precision():
+    shared = {"CACHE_DIR": "c"}
+    vae = types.SimpleNamespace(ov_config=shared, request="old")
+    pipe = types.SimpleNamespace(dtc_kind="xl", vae_decoder=vae)
+    image_worker.full_precision_vae(pipe)
+    assert vae.ov_config == {"CACHE_DIR": "c", "INFERENCE_PRECISION_HINT": "f32"} and vae.request is None
+    assert shared == {"CACHE_DIR": "c"}                     # the other parts keep the fast setting
+    sd = types.SimpleNamespace(dtc_kind="sd", vae_decoder=types.SimpleNamespace(ov_config={}, request="r"))
+    image_worker.full_precision_vae(sd)
+    assert sd.vae_decoder.ov_config == {}
+
+
+def test_black_picture_on_the_graphics_card_is_redrawn_on_cpu(monkeypatch, tmp_path, capsys):
+    calls = fake_stack(monkeypatch)
+    real_make = image_worker.make
+
+    def make(pipe, *a):
+        img = real_make(pipe, *a)
+        return Image.new("RGB", img.size, "black") if pipe.device == "GPU" else img
+    monkeypatch.setattr(image_worker, "make", make)
+    job = _job(tmp_path, 1)
+    image_worker.run(job)
+    assert Image.open(job["items"][0]["out"]).getpixel((0, 0)) == (255, 0, 0)
+    assert "came out black" in capsys.readouterr().out
+    assert image_worker.is_black(Image.new("RGB", (8, 8), (3, 3, 3))) and not image_worker.is_black(Image.new("RGB", (8, 8), "red"))
