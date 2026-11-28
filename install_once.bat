@@ -9,6 +9,7 @@ REM            install_once.bat ai      -> local AI writer/translator (Ollama + 
 REM                                         and captions from your recordings (Whisper, about 0.5 GB)
 REM            install_once.bat images  -> picture creator from a prompt (about 3 GB)
 REM            install_once.bat hd      -> film-quality pictures (adds about 4.8 GB; includes images)
+REM            install_once.bat best    -> best pictures, FLUX.2 klein (adds about 4.6 GB, 16 GB memory; includes images)
 REM  Options can be combined, e.g.  install_once.bat clone ai images
 REM ============================================================
 cd /d "%~dp0"
@@ -30,6 +31,7 @@ set "WANTCLONE="
 set "WANTAI="
 set "WANTIMAGES="
 set "WANTHD="
+set "WANTBEST="
 for %%a in (%*) do (
   if /i "%%a"=="small" set "MODELARGS=%MODELARGS% --small"
   if /i "%%a"=="gpu" set "WANTGPU=1"
@@ -38,6 +40,7 @@ for %%a in (%*) do (
   if /i "%%a"=="ai" set "WANTAI=1"
   if /i "%%a"=="images" set "WANTIMAGES=1"
   if /i "%%a"=="hd" set "WANTIMAGES=1" & set "WANTHD=1"
+  if /i "%%a"=="best" set "WANTIMAGES=1" & set "WANTBEST=1"
 )
 if defined WANTPIPER set "MODELARGS=%MODELARGS% --piper"
 
@@ -121,6 +124,12 @@ if defined WANTHD (
   echo [Pictures] Downloading the film-quality picture model, about 4.8 GB ...
   set "HF_HOME=%CD%\models\hf"
   .venv-image\Scripts\python.exe scripts\download_image_model.py rupeshs/SDXL-Lightning-2steps-openvino-int8
+  if errorlevel 1 goto fail
+)
+if defined WANTBEST (
+  echo [Pictures] Downloading the best picture model FLUX.2 klein, about 4.6 GB ...
+  set "HF_HOME=%CD%\models\hf"
+  .venv-image\Scripts\python.exe scripts\download_image_model.py rupeshs/flux2-klein-4b-int4-ov
   if errorlevel 1 goto fail
 )
 

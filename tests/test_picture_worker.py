@@ -172,6 +172,7 @@ def _server(monkeypatch, tmp_path, code):
     monkeypatch.setattr(images, "LOG", tmp_path / "logs" / "picture_creator.log")
     monkeypatch.setattr(images, "CACHE", tmp_path / "ov_cache")
     monkeypatch.setattr(images, "hd_ready", lambda: False)
+    monkeypatch.setattr(images, "best_ready", lambda: False)
     srv = images._Server()
     monkeypatch.setattr(images, "SERVER", srv)
     return srv
@@ -407,3 +408,37 @@ def test_black_picture_on_the_graphics_card_is_redrawn_on_cpu(monkeypatch, tmp_p
     assert Image.open(job["items"][0]["out"]).getpixel((0, 0)) == (255, 0, 0)
     assert "came out black" in capsys.readouterr().out
     assert image_worker.is_black(Image.new("RGB", (8, 8), (3, 3, 3))) and not image_worker.is_black(Image.new("RGB", (8, 8), "red"))
+
+
+def test_best_quality_is_preferred_and_reads_long_prompts(monkeypatch, tmp_path):
+    from app import tools
+    monkeypatch.setattr(images, "ROOT", tmp_path)
+    for model in (images.HD_MODEL, images.BEST_MODEL):
+        snap = images._repo(model) / "snapshots" / "r1"
+        snap.mkdir(parents=True)
+        (snap / "model_index.json").write_text("{}")
+    assert images.pick() == "best" and images.pick("hd") == "hd" and images.pick("fast") == "fast"
+    blobs = images._repo(images.BEST_MODEL) / "blobs"
+    blobs.mkdir()
+    (blobs / "abc.incomplete").write_text("")              # still downloading: not used yet
+    assert not images.best_ready() and images.pick() == "hd" and images.pick("best") == "hd"
+    long = " ".join(f"w{i}" for i in range(400))
+    assert len(tools.build_prompt(long, "none", long=True).split(", ")[0].split()) == tools.LONG_SUBJECT_WORDS
+    assert len(tools.build_prompt(long, "none").split(", ")[0].split()) == tools.SUBJECT_WORDS
+
+
+def test_flux2_model_folder_is_recognised(tmp_path):
+    (tmp_path / "model_index.json").write_text(json.dumps({"_class_name": "Flux2KleinPipeline"}))
+    assert image_worker.model_class(str(tmp_path)) == "Flux2KleinPipeline" and not image_worker.is_xl(str(tmp_path))
+    assert image_worker.GUIDANCE["flux2"] == 1.0
+
+
+def test_compiled_model_cache_is_kept_under_its_limit(monkeypatch, tmp_path):
+    import os
+    monkeypatch.setattr(images, "CACHE", tmp_path)
+    for k in range(5):
+        f = tmp_path / f"blob{k}"
+        f.write_bytes(b"x" * 1000)
+        os.utime(f, (k * 100, k * 100))                      # blob0 used longest ago
+    images.prune_cache(limit_gb=3000 / 1e9)
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["blob2", "blob3", "blob4"]

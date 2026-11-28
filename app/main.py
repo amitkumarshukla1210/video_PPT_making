@@ -285,13 +285,21 @@ def tool_image():
 
 @app.post("/api/tools/image/download_hd")
 def tool_image_download_hd():
-    """Download the film-quality picture model (one time, about 4.8 GB) as a background job."""
+    return tool_image_download("hd")
+
+
+@app.post("/api/tools/image/download/<q>")
+def tool_image_download(q):
+    """Download a bigger picture model (one time, about 4.6–4.8 GB) as a background job: 'best' or 'hd'."""
     from .ai import images
-    if images.hd_ready():
+    if q not in ("best", "hd"):
+        abort(404)
+    if images.ready(q):
         return jsonify(ok=True, done=True)
-    gb = images.HD_SIZE_GB
-    return _tool_job(lambda progress, cancelled: images.download_hd(
-        lambda d, t: progress("Downloading film quality", d / t, f"{d / 1e9:.1f} of {gb} GB — one time")))
+    gb = images.status()["size_gb"][q]
+    label = "best quality" if q == "best" else "film quality"
+    return _tool_job(lambda progress, cancelled: images.download(q, lambda d, t: progress(
+        f"Downloading {label}", d / t, f"{d / 1e9:.1f} of {gb} GB — one time")))
 
 
 @app.post("/api/tools/image/check")

@@ -6,6 +6,17 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.12.0 — 2026-11-28
+- **⭐ Best quality pictures: FLUX.2 klein**, the closest to ChatGPT that runs on your own laptop, offline and free
+  (Apache 2.0 licence: commercial use allowed). Real faces, skin, hands, clothes and sunlight; it draws what you ask
+  for (bow, quiver, deer, hut, river…).
+  - It reads **long prompts** (about 300 words; Film and Fast read only the first 60–70).
+  - One-time download of about 4.6 GB: click **⬇ Download best quality** in Tools › 2 Image, or run
+    `install_once.bat best`. Needs 16 GB of memory; about 1 minute a picture. Close other big programs while it draws.
+  - **Quality** now offers *Best · FLUX.2*, *Film quality* and *Fast draft*. The best downloaded one is the default,
+    also for "Make a video".
+- The compiled-model cache (models/ov_cache) is kept under 12 GB; the oldest entries are removed automatically.
+
 ## 1.11.2 — 2026-11-28
 - **Fixed: film-quality pictures came out completely black on the graphics card.** The last step of the film-quality
   model (the decoder that turns the drawing into a picture) overflows at the reduced precision graphics cards use.

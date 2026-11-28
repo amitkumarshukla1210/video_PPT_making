@@ -66,16 +66,91 @@ def fix_lcm(pipe):
 # plain Stable Diffusion UNet (no guidance input, e.g. rupeshs/LCM-dreamshaper-v7-openvino) need ~1.5 —
 # higher values burn the colours (checked on the real model: 1.5 clean, 2.5 over-saturated).
 # SDXL-Lightning ("xl") was distilled without guidance: 0 (no negative prompt pass, twice as fast).
-GUIDANCE = {"lcm": 8.0, "sd": 1.5, "xl": 0.0}
+# FLUX.2 klein ("flux2") is guidance-distilled: 1.0.
+GUIDANCE = {"lcm": 8.0, "sd": 1.5, "xl": 0.0, "flux2": 1.0}
+
+
+def model_class(model):
+    """The pipeline class named in the model folder's model_index.json ("" when unknown)."""
+    try:
+        with open(os.path.join(model, "model_index.json"), encoding="utf-8") as f:
+            return json.load(f).get("_class_name", "")
+    except (OSError, ValueError):
+        return ""
+
+
+def _flux2(model, cfg):
+    """FLUX.2 klein 4B (OpenVINO int4 export, e.g. rupeshs/flux2-klein-4b-int4-ov). The export is a little newer than
+    the installed optimum-intel / diffusers, so a few seams are bridged here:
+    - tokenizer: saved by transformers 5; loaded as a fast tokenizer that transformers 4 can read,
+    - text encoder: the export returns the finished prompt embeddings (output "prompt_embeds"), not hidden states,
+    - transformer: its img_ids / txt_ids inputs have no batch dimension; optimum's reshape assumes one,
+    - text encoder reshape: optimum would fix the prompt length to the tokenizer maximum (131072) and run out of memory,
+    - VAE: its batch-norm statistics live in vae_bn_stats.npz."""
+    import numpy as np
+    import torch
+    import types
+    from optimum.intel import OVFlux2KleinPipeline as P
+    try:
+        from transformers import Qwen2TokenizerFast as Tok
+        tok = Tok.from_pretrained(os.path.join(model, "tokenizer"), extra_special_tokens={})
+    except ImportError:                              # transformers 5: the fast tokenizer is the default
+        from transformers import AutoTokenizer
+        tok = AutoTokenizer.from_pretrained(os.path.join(model, "tokenizer"))
+
+    def reshape_transformer(self, m, batch_size=-1, height=-1, width=-1, *a, **kw):
+        if height <= 0 or width <= 0:
+            return m
+        packed = (height // 16) * (width // 16)
+        size = {"hidden_states": [1, packed, -1], "encoder_hidden_states": [1, -1, -1], "timestep": [1],
+                "img_ids": [packed, -1], "txt_ids": [-1, -1]}
+        shapes = {}
+        for i in m.inputs:
+            ps = i.get_partial_shape()
+            want = size.get(i.get_any_name())
+            if want and ps.rank.is_static and ps.rank.get_length() == len(want):
+                ps = [w if w != -1 else ps[k] for k, w in enumerate(want)]
+            shapes[i] = ps
+        m.reshape(shapes)
+        return m
+
+    def prompt_embeds(text_encoder, tokenizer, prompt, dtype=None, device=None, max_sequence_length=512,
+                      hidden_states_layers=None):
+        prompt = [prompt] if isinstance(prompt, str) else prompt
+        ids, masks = [], []
+        for p in prompt:
+            text = tokenizer.apply_chat_template([{"role": "user", "content": p}], tokenize=False,
+                                                 add_generation_prompt=True, enable_thinking=False)
+            t = tokenizer(text, return_tensors="pt", padding="max_length", truncation=True,
+                          max_length=max_sequence_length)
+            ids.append(t["input_ids"])
+            masks.append(t["attention_mask"])
+        out = text_encoder(input_ids=torch.cat(ids), attention_mask=torch.cat(masks))
+        return out["prompt_embeds"].to(torch.float32)
+
+    P._reshape_transformer = reshape_transformer
+    P._reshape_text_encoder = lambda self, m, *a, **kw: m
+    P._get_qwen3_prompt_embeds = staticmethod(prompt_embeds)
+    pipe = P.from_pretrained(model, tokenizer=tok, ov_config=cfg, compile=False)
+    fwd = pipe.transformer.forward
+
+    def forward(*a, **kw):
+        for k in ("img_ids", "txt_ids"):
+            if kw.get(k) is not None and kw[k].ndim == 3:
+                kw[k] = kw[k][0]
+        return fwd(*a, **kw)
+    pipe.transformer.forward = forward
+    stats = os.path.join(model, "vae_bn_stats.npz")
+    if os.path.exists(stats) and getattr(getattr(pipe, "vae", None), "bn", None) is None:
+        z = np.load(stats)
+        pipe.vae.bn = types.SimpleNamespace(running_mean=torch.from_numpy(z["running_mean"]).float(),
+                                            running_var=torch.from_numpy(z["running_var"]).float())
+    return pipe
 
 
 def is_xl(model):
     """Stable Diffusion XL model folder? (model_index.json names the pipeline class)."""
-    try:
-        with open(os.path.join(model, "model_index.json"), encoding="utf-8") as f:
-            return "XL" in json.load(f).get("_class_name", "")
-    except (OSError, ValueError):
-        return False
+    return "XL" in model_class(model)
 
 
 def _pipeline(model, cache):
@@ -84,6 +159,8 @@ def _pipeline(model, cache):
     from optimum.intel import OVStableDiffusionPipeline, OVLatentConsistencyModelPipeline
     cfg = {"CACHE_DIR": cache or ""}
     compat()                                         # again, after optimum/diffusers were imported
+    if model_class(model).startswith("Flux2"):
+        return _flux2(model, cfg), "flux2"
     if is_xl(model):
         from optimum.intel import OVStableDiffusionXLPipeline
         return OVStableDiffusionXLPipeline.from_pretrained(model, ov_config=cfg, compile=False), "xl"
@@ -125,7 +202,7 @@ def full_precision_vae(pipe):
     """The SDXL picture decoder (VAE) overflows in half precision, which graphics cards use by default: every picture
     comes out black. Run that one part in full precision (f32); the rest stays fast."""
     vae = getattr(pipe, "vae_decoder", None)
-    if vae is not None and getattr(pipe, "dtc_kind", "") == "xl":
+    if vae is not None and getattr(pipe, "dtc_kind", "") in ("xl", "flux2"):
         vae.ov_config = {**vae.ov_config, "INFERENCE_PRECISION_HINT": "f32"}   # its own copy, not the shared one
         vae.request = None
 

@@ -75,19 +75,26 @@
     <div class="grid-opts">
       <div><label for="imgStyle">Style</label><select id="imgStyle"></select></div>
       <div><label for="imgAspect">Shape</label><select id="imgAspect"><option value="16:9">16:9 · YouTube, films</option><option value="9:16">9:16 · Reels, Shorts</option><option value="1:1">1:1 · square posts</option></select></div>
-      <div><label for="imgQuality">Quality</label><select id="imgQuality"><option value="hd">Film quality · 1024 px</option><option value="fast">Fast draft · 768 px</option></select></div>
+      <div><label for="imgQuality">Quality</label><select id="imgQuality"><option value="best">Best · FLUX.2 · 1024 px</option><option value="hd">Film quality · 1024 px</option><option value="fast">Fast draft · 768 px</option></select></div>
       <div><label for="imgN">How many</label><select id="imgN"><option>1</option><option selected>2</option><option>4</option></select></div>
     </div>
+    <div class="hd-offer hidden" id="bestOffer">
+      <b>⭐ Get the best pictures (closest to ChatGPT)</b>
+      <span>FLUX.2 klein draws real faces, hands, clothes and light, and follows long, detailed prompts (up to about
+        300 words). One-time download of about 4.6 GB; after that it works offline. Needs 16 GB of memory; about
+        1 minute a picture. Close other big programs while it draws.</span>
+      <button class="btn btn-primary small" id="bestGet">⬇ Download best quality</button>
+    </div>
     <div class="hd-offer hidden" id="hdOffer">
-      <b>🎬 Get film-quality pictures</b>
-      <span>A bigger picture model (Stable Diffusion XL Lightning) draws sharp, cinematic 1024-pixel pictures with real
-        light and detail. One-time download of about 4.8 GB; after that it works offline, about 10–30 seconds a picture.</span>
-      <button class="btn btn-primary small" id="hdGet">⬇ Download film quality</button>
+      <b>🎬 Get film-quality pictures (faster)</b>
+      <span>Stable Diffusion XL Lightning draws sharp, cinematic 1024-pixel pictures. One-time download of about
+        4.8 GB; after that it works offline, about 10–30 seconds a picture.</span>
+      <button class="btn btn-outline small" id="hdGet">⬇ Download film quality</button>
     </div>
     <div class="row wrap"><button class="btn btn-primary" id="imgGo">🖼 Create</button>
       <button class="btn btn-outline" id="imgCheck" title="Test the picture creator and show a report">🔍 Check picture creator</button>
       <span class="muted" id="imgStatus" aria-live="polite"></span></div>
-    <p class="muted">Tip: the picture model reads about the first 60–70 words of a prompt. Put a character's look in <a href="/tools/character">1 Character</a> once, then write short scenes like “@Ram and @Sita in a forest hut at sunset”.</p>
+    <p class="muted">Tip: Best quality reads long prompts (about 300 words); Film and Fast read only the first 60–70 words. Put a character's look in <a href="/tools/character">1 Character</a> once, then write short scenes like “@Ram and @Sita in a forest hut at sunset”.</p>
     <div class="check-report hidden" id="imgReport"><pre></pre><button class="btn btn-outline small" id="imgCopy">📋 Copy report</button></div>
     <div class="progress hidden" id="imgProg"><div class="bar"><div></div></div><p class="muted"></p></div>
     <h3 class="sub">My pictures</h3>

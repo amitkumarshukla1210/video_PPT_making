@@ -1,10 +1,13 @@
 """Picture creator on OpenVINO, using the Intel/AMD/NVIDIA GPU when OpenVINO can, otherwise the CPU.
 Runs in its own environment (.venv-image), installed with install_once.bat images.
-Two models:
+Three models (quality levels):
   fast  rupeshs/LCM-dreamshaper-v7-openvino (Stable Diffusion 1.5 + LCM, 768 px; CreativeML OpenRAIL-M)
   hd    rupeshs/SDXL-Lightning-2steps-openvino-int8 (Stable Diffusion XL + Lightning, 1024 px, film quality;
         OpenRAIL++). Optional, about 4.8 GB: install_once.bat hd, or the button in Tools > Image.
-Both licences allow commercial use, with the licences' use restrictions."""
+  best  rupeshs/flux2-klein-4b-int4-ov (FLUX.2 klein 4B, int4, 1024 px: real faces, hands, light; reads long
+        prompts, up to 512 tokens; Apache 2.0). Optional, about 4.6 GB, needs 16 GB of memory:
+        install_once.bat best, or the button in Tools > Image.
+All licences allow commercial use, with the licences' use restrictions."""
 import atexit
 import json
 import os
@@ -19,10 +22,14 @@ from ..config import ROOT
 MODEL = os.environ.get("DTC_IMAGE_MODEL", "rupeshs/LCM-dreamshaper-v7-openvino")
 HD_MODEL = os.environ.get("DTC_IMAGE_MODEL_HD", "rupeshs/SDXL-Lightning-2steps-openvino-int8")
 HD_SIZE_GB = 4.8
+BEST_MODEL = os.environ.get("DTC_IMAGE_MODEL_BEST", "rupeshs/flux2-klein-4b-int4-ov")
+BEST_SIZE_GB = 4.6
 WORKER = Path(__file__).with_name("image_worker.py")
 SIZES = {"16:9": (768, 432), "9:16": (432, 768), "1:1": (512, 512)}     # the pictures you get (fast)
 SIZES_HD = {"16:9": (1024, 576), "9:16": (576, 1024), "1:1": (1024, 1024)}   # film quality
-STEPS = {"fast": 4, "hd": 2}             # the HD model is distilled for 2 steps (4 looks over-cooked)
+STEPS = {"fast": 4, "hd": 2, "best": 4}   # the HD model is distilled for 2 steps (4 looks over-cooked)
+ORDER = ("best", "hd", "fast")            # the default: the best one that is downloaded
+CACHE_LIMIT_GB = 12                       # compiled models kept in models/ov_cache (oldest removed beyond this)
 
 
 def draw_size(w, h):
@@ -61,16 +68,37 @@ def _model_cached():
     return _repo(MODEL).exists()
 
 
+def _complete(model):
+    """Downloaded completely: the snapshot has model_index.json and no file is still being downloaded."""
+    if model_path(model) == model:
+        return False
+    blobs = _repo(model) / "blobs"
+    return not (blobs.exists() and any(blobs.glob("*.incomplete")))
+
+
 def hd_ready():
-    """The film-quality model is downloaded completely (a big download: its snapshot has model_index.json)."""
-    return model_path(HD_MODEL) != HD_MODEL
+    """The film-quality model is downloaded completely."""
+    return _complete(HD_MODEL)
+
+
+def best_ready():
+    """The best model (FLUX.2 klein) is downloaded completely."""
+    return _complete(BEST_MODEL)
+
+
+def ready(q):
+    return {"best": best_ready, "hd": hd_ready, "fast": lambda: True}[q]()
+
+
+def model_for(q):
+    return {"best": BEST_MODEL, "hd": HD_MODEL, "fast": MODEL}[q]
 
 
 def pick(quality=None):
-    """'hd' (film quality) when asked for or by default once downloaded, else 'fast'."""
-    if quality == "fast" or not hd_ready():
-        return "fast"
-    return "hd"
+    """The quality asked for when it is downloaded; otherwise the best one that is."""
+    if quality in STEPS and ready(quality):
+        return quality
+    return next(q for q in ORDER if ready(q))
 
 
 def model_path(model=None):
@@ -93,9 +121,10 @@ def status():
         return {"available": False, "info": "Picture creator: run install_once.bat images (about 3 GB, one time)"}
     if not _model_cached():
         return {"available": False, "info": "Picture model not downloaded yet: run install_once.bat images"}
-    hd = hd_ready()
-    return {"available": True, "hd": hd, "hd_size_gb": HD_SIZE_GB,
-            "info": f"{(HD_MODEL if hd else MODEL).split('/')[-1]} on OpenVINO"}
+    have = {q: ready(q) for q in ORDER}
+    return {"available": True, "ready": have, "hd": have["hd"], "best": have["best"],
+            "size_gb": {"best": BEST_SIZE_GB, "hd": HD_SIZE_GB}, "hd_size_gb": HD_SIZE_GB,
+            "info": f"{model_for(pick()).split('/')[-1]} on OpenVINO"}
 
 
 LOG = ROOT / "models" / "logs" / "picture_creator.log"
@@ -129,6 +158,22 @@ def _explain(log):
 
 
 CACHE = ROOT / "models" / "ov_cache"       # OpenVINO keeps the compiled model here: next start in seconds
+
+
+def prune_cache(limit_gb=None):
+    """Keep the compiled-model cache under CACHE_LIMIT_GB: each model, picture size and setting adds a few GB, so
+    remove the files used longest ago. A removed entry is only re-compiled (slower first picture), never lost work."""
+    limit = int((limit_gb or CACHE_LIMIT_GB) * 1e9)
+    try:
+        files = [f for f in CACHE.rglob("*") if f.is_file()]
+        total = sum(f.stat().st_size for f in files)
+        for f in sorted(files, key=lambda f: max(f.stat().st_atime, f.stat().st_mtime)):
+            if total <= limit:
+                break
+            total -= f.stat().st_size
+            f.unlink(missing_ok=True)
+    except OSError:
+        pass
 IDLE_SECONDS = 15 * 60                     # the picture creator closes itself after this long unused
 
 
@@ -141,6 +186,7 @@ class _Server:
         self.timer = None
 
     def _start(self):
+        prune_cache()
         env = {**os.environ, **PRIVATE_ENV}
         self.proc = subprocess.Popen([_python() or sys.executable, str(WORKER), "--serve"], stdin=subprocess.PIPE,
                                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8",
@@ -216,12 +262,13 @@ def finish(png_bytes):
 def generate(prompts, aspect="16:9", seed=None, steps=None, progress=lambda done, total: None, quality=None):
     """Make one PNG per prompt. Returns a list of PNG bytes. The first picture after starting the app loads the
     model (about a minute, more the very first time); later ones only draw.
-    quality: 'hd' (film quality, when downloaded — the default then) or 'fast'."""
+    quality: 'best', 'hd' (film quality) or 'fast'; by default the best one that is downloaded."""
     q = pick(quality)
-    w, h = (SIZES_HD if q == "hd" else SIZES).get(aspect, (SIZES_HD if q == "hd" else SIZES)["16:9"])
+    sizes = SIZES if q == "fast" else SIZES_HD
+    w, h = sizes.get(aspect, sizes["16:9"])
     dw, dh = draw_size(w, h)
     steps = steps or STEPS[q]
-    model = model_path(HD_MODEL if q == "hd" else MODEL)
+    model = model_path(model_for(q))
     with tempfile.TemporaryDirectory() as td:
         outs = [str(Path(td) / f"img_{i}.png") for i in range(len(prompts))]
         CACHE.mkdir(parents=True, exist_ok=True)
@@ -241,7 +288,7 @@ def warm():
 def check():
     """Test the installation: package versions, devices, loading the model, one small picture.
     Returns a plain-text report the user can copy."""
-    model = HD_MODEL if pick() == "hd" else MODEL
+    model = model_for(pick())
     head = [f"Picture creator check — model {model}",
             f"Environment: {_python() or 'NOT INSTALLED (run install_once.bat images)'}",
             f"Model files downloaded: {'yes' if _model_cached() else 'NO (run install_once.bat images)'}"]
@@ -258,24 +305,29 @@ def check():
 
 
 def download_hd(progress=lambda done, total: None):
-    """Download the film-quality model (one time, about 4.8 GB) into models/hf, with progress by bytes on disk."""
+    return download("hd", progress)
+
+
+def download(q, progress=lambda done, total: None):
+    """Download a picture model (one time, about 4.6–4.8 GB) into models/hf, with progress by bytes on disk."""
     import time
+    model, gb = {"hd": (HD_MODEL, HD_SIZE_GB), "best": (BEST_MODEL, BEST_SIZE_GB)}[q]
     if not _python():
         raise RuntimeError("Install the picture creator first: run install_once.bat images")
     env = {**os.environ, "HF_HOME": str(ROOT / "models" / "hf"), "HF_HUB_DISABLE_TELEMETRY": "1",
            "PYTHONIOENCODING": "utf-8"}
     env.pop("HF_HUB_OFFLINE", None)
     script = ROOT / "scripts" / "download_image_model.py"
-    proc = subprocess.Popen([_python(), str(script), HD_MODEL], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    proc = subprocess.Popen([_python(), str(script), model], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                             text=True, encoding="utf-8", errors="replace", env=env)
     out = []
     threading.Thread(target=lambda: out.extend(proc.stdout), daemon=True).start()
-    total = int(HD_SIZE_GB * 1e9)
+    total = int(gb * 1e9)
     while proc.poll() is None:
-        got = sum(f.stat().st_size for f in _repo(HD_MODEL).rglob("*") if f.is_file()) if _repo(HD_MODEL).exists() else 0
+        got = sum(f.stat().st_size for f in _repo(model).rglob("*") if f.is_file()) if _repo(model).exists() else 0
         progress(min(got, total - 1), total)
         time.sleep(2)
-    if proc.returncode != 0 or not hd_ready():
+    if proc.returncode != 0 or not ready(q):
         raise RuntimeError("Download failed (check the internet connection and try again).\n" + "".join(out[-8:]))
     with SERVER.lock:                     # the next picture loads the new model
         SERVER.stop()

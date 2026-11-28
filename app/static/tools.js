@@ -146,12 +146,26 @@ function renderRefChips() {
   $("#imgRefs").innerHTML = all.length ? "Insert: " + all.map((i) => `<button class="chip small" data-ins="${esc(i.tag)}">${esc(i.tag)}</button>`).join("")
     : '<span class="muted">Tip: save people in <a href="/tools/character">Character</a> and places in <a href="/tools/world">World</a>, then type @Name here so they look the same in every picture.</span>';
 }
+const QUALITY = { best: "Best · FLUX.2 · 1024 px", hd: "Film quality · 1024 px", fast: "Fast draft · 768 px" };
 function showQuality() {
-  const hd = !!st.images.hd;
-  $("#imgQuality option[value=hd]").disabled = !hd;
-  $("#imgQuality option[value=hd]").textContent = hd ? "Film quality · 1024 px" : "Film quality (download below)";
-  if (!hd) $("#imgQuality").value = "fast";
-  $("#hdOffer").classList.toggle("hidden", hd || !st.images.available);
+  const have = st.images.ready || { best: !!st.images.best, hd: !!st.images.hd, fast: true };
+  for (const q of ["best", "hd"]) {
+    const o = $(`#imgQuality option[value=${q}]`);
+    o.disabled = !have[q];
+    o.textContent = have[q] ? QUALITY[q] : `${QUALITY[q].split(" · ")[0]} (download below)`;
+  }
+  $("#imgQuality").value = ["best", "hd", "fast"].find((q) => have[q]);
+  $("#bestOffer").classList.toggle("hidden", !!have.best || !st.images.available);
+  $("#hdOffer").classList.toggle("hidden", !!have.hd || !!have.best || !st.images.available);
+}
+async function getModel(q, btn) {
+  btn.disabled = true;
+  try {
+    const r = await startJob(`/api/tools/image/download/${q}`, { method: "POST" }, $("#imgProg"));
+    if (!r?.done) await waitJob($("#imgProg"));
+    await refresh(); showQuality();
+    toast(q === "best" ? "Best quality is ready — your next pictures use it" : "Film quality is ready — your next pictures use it");
+  } catch (e) { toast(e.message, true); } finally { btn.disabled = false; }
 }
 async function makeImages() {
   if (!st.images.available) return toast(st.images.info, true);
@@ -275,15 +289,8 @@ async function init() {
   };
   $("#clipGo").onclick = makeClip;
   $("#imgGo").onclick = makeImages;
-  $("#hdGet").onclick = async () => {
-    $("#hdGet").disabled = true;
-    try {
-      const r = await startJob("/api/tools/image/download_hd", { method: "POST" }, $("#imgProg"));
-      if (!r?.done) await waitJob($("#imgProg"));
-      await refresh(); showQuality();
-      toast("Film quality is ready — your next pictures use it");
-    } catch (e) { toast(e.message, true); } finally { $("#hdGet").disabled = false; }
-  };
+  $("#hdGet").onclick = () => getModel("hd", $("#hdGet"));
+  $("#bestGet").onclick = () => getModel("best", $("#bestGet"));
   $("#imgCheck").onclick = async () => {
     $("#imgCheck").disabled = true;
     try {
