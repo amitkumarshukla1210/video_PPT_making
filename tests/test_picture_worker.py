@@ -442,3 +442,12 @@ def test_compiled_model_cache_is_kept_under_its_limit(monkeypatch, tmp_path):
         os.utime(f, (k * 100, k * 100))                      # blob0 used longest ago
     images.prune_cache(limit_gb=3000 / 1e9)
     assert sorted(p.name for p in tmp_path.iterdir()) == ["blob2", "blob3", "blob4"]
+
+
+def test_release_frees_one_compiled_part():
+    pipe = types.SimpleNamespace(transformer=types.SimpleNamespace(request="compiled"),
+                                 text_encoder=types.SimpleNamespace(request="compiled"))
+    image_worker.release(pipe, "transformer")
+    assert pipe.transformer.request is None and pipe.text_encoder.request == "compiled"
+    image_worker.release(None, "transformer")                  # nothing loaded yet: no error
+    image_worker.release(pipe, "vae_decoder")                   # part the model does not have: no error

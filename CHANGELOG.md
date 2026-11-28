@@ -6,6 +6,12 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.12.1 — 2026-11-28
+- **Best quality uses 2 GB less memory** (8.5 → 6.5 GB while drawing). The part that reads the prompt and the part
+  that draws are no longer in memory at the same time. On a 16 GB laptop with memory at 94%, Windows was swapping to
+  disk and a picture took about 10 minutes; with this change it should be about 1½–3 minutes.
+  Tip: close Chrome, Edge, Teams and Outlook while making Best pictures, and make 1 picture at a time.
+
 ## 1.12.0 — 2026-11-28
 - **⭐ Best quality pictures: FLUX.2 klein**, the closest to ChatGPT that runs on your own laptop, offline and free
   (Apache 2.0 licence: commercial use allowed). Real faces, skin, hands, clothes and sunlight; it draws what you ask
