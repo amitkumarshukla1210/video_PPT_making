@@ -6,6 +6,14 @@ the black start-up window. Numbering: **MAJOR.MINOR.PATCH**
 - **MINOR** (1.**3**.0): new features; your projects keep working.
 - **MAJOR** (**2**.0.0): a big change that may need a fresh setup or changes to old projects.
 
+## 1.11.2 — 2026-11-28
+- **Fixed: film-quality pictures came out completely black on the graphics card.** The last step of the film-quality
+  model (the decoder that turns the drawing into a picture) overflows at the reduced precision graphics cards use.
+  That one step now runs in full precision; the rest stays fast.
+- **Safety net:** if a picture still comes out black on the graphics card, it is redrawn on the processor (CPU)
+  automatically, so you never get a black picture.
+- Delete the black pictures made with 1.11.0 / 1.11.1 with 🗑 under each picture.
+
 ## 1.11.1 — 2026-11-28
 - **Film quality: much less strain on the laptop.** The film-quality model now runs at a fixed picture size, like the
   fast one. On a graphics card it had been drawing at "any size", which is slow and can use so much memory that the

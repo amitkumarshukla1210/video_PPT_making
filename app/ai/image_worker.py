@@ -121,6 +121,21 @@ def reshape(pipe, width, height):
         del pipe._reshape_unet
 
 
+def full_precision_vae(pipe):
+    """The SDXL picture decoder (VAE) overflows in half precision, which graphics cards use by default: every picture
+    comes out black. Run that one part in full precision (f32); the rest stays fast."""
+    vae = getattr(pipe, "vae_decoder", None)
+    if vae is not None and getattr(pipe, "dtc_kind", "") == "xl":
+        vae.ov_config = {**vae.ov_config, "INFERENCE_PRECISION_HINT": "f32"}   # its own copy, not the shared one
+        vae.request = None
+
+
+def is_black(img):
+    """A failed drawing (NaN in half precision) comes out as a plain black picture."""
+    lo, hi = zip(*img.convert("RGB").getextrema())
+    return max(hi) <= 8
+
+
 def load(model, width, height, prefer_gpu=True, cache=""):
     """Load and compile the pipeline: graphics card first, processor (CPU) if that fails.
     cache = folder where OpenVINO keeps the compiled model, so the next start takes seconds, not minutes."""
@@ -134,6 +149,7 @@ def load(model, width, height, prefer_gpu=True, cache=""):
             t = time.time()
             pipe, kind = _pipeline(model, cache)
             pipe.dtc_kind = kind
+            full_precision_vae(pipe)
             if dev != "CPU":
                 pipe.to(dev)
             reshape(pipe, width, height)
@@ -176,6 +192,8 @@ def run(job, state=None):
         seed = int(job["seed"]) + n if job.get("seed") is not None else None
         try:
             img = make(state["pipe"], it["prompt"], w, h, job.get("steps"), seed)
+            if is_black(img) and state["dev"] != "CPU":
+                raise RuntimeError("the picture came out black")
         except Exception as e:                       # noqa: BLE001 — the graphics card failed while drawing
             if state["dev"] == "CPU":
                 raise
