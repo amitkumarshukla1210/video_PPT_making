@@ -58,11 +58,30 @@ def fake_stack(monkeypatch, gpu_compile_fails=False, gpu_draw_fails=False, devic
     oi.OVStableDiffusionPipeline = Pipe
     oi.OVLatentConsistencyModelPipeline = LcmPipe
 
+    class Shape(list):
+        rank = types.SimpleNamespace(is_static=True, get_length=lambda: 4)
+
+    class Inp:
+        def __init__(self, name):
+            self.name = name
+
+        def get_any_name(self):
+            return self.name
+
+        def get_partial_shape(self):
+            return Shape([2, 4, 72, 128])
+
     class XlPipe(Pipe):
         kind = "xl"
 
-        def reshape(self, **kw):                          # the real XL pipeline breaks on a static reshape
-            raise AssertionError("XL must not be reshaped")
+        def _reshape_unet(self, model, *a, **kw):        # like optimum-intel: doubles the batch for guidance
+            model.inputs = [Inp("sample"), Inp("timestep")]
+            return model
+
+        def reshape(self, **kw):
+            m = types.SimpleNamespace(reshape=lambda shapes: calls.append(
+                ("unet batch", {i.get_any_name(): s[0] for i, s in shapes.items()})))
+            self._reshape_unet(m, 1, kw["height"], kw["width"], 1, 77)
     oi.OVStableDiffusionXLPipeline = XlPipe
     ov = types.ModuleType("openvino")
     ov.Core = lambda: types.SimpleNamespace(available_devices=list(devices))
@@ -321,10 +340,13 @@ def test_film_quality_model_uses_the_xl_pipeline_without_guidance(monkeypatch, t
     state = {}
     image_worker.run(job, state)
     assert ("guidance", "xl", 0.0) in calls
-    job["width"], job["height"] = 576, 1024                 # another shape: no reshape, draws at once
+    job["width"], job["height"] = 576, 1024                 # another shape: re-shaped, not re-loaded
     image_worker.run(job, state)
     assert len([c for c in calls if c[0] == "load"]) == 1
     assert Image.open(job["items"][0]["out"]).size == (576, 1024)
+    # fixed size with a UNet batch of 1 (no guidance): low memory and fast on a graphics card
+    batches = [c[1] for c in calls if c[0] == "unet batch"]
+    assert len(batches) == 2 and all(b["sample"] == 1 and b["timestep"] == 2 for b in batches)
     assert not image_worker.is_xl(str(tmp_path))
 
 

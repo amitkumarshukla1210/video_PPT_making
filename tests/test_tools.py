@@ -111,6 +111,7 @@ def test_images_use_style_and_characters(client, monkeypatch):
     tools.save_ref("characters", "Maya", "red raincoat")
     r = tools.create_images("@Maya in the rain", "anime", "9:16", 2, quality="fast")
     assert len(r["images"]) == 2 and seen["aspect"] == "9:16" and seen["quality"] == "fast"
+    assert len(seen["prompts"]) == 1                    # drawn and saved one at a time
     assert seen["prompts"][0].startswith("Maya (red raincoat) in the rain") and "anime" in seen["prompts"][0]
 
 

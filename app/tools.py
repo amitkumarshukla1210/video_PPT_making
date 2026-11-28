@@ -265,10 +265,10 @@ def create_images(prompt, style="none", aspect="16:9", n=1, progress=lambda f, m
     n = max(1, min(8, int(n or 1)))
     progress(0.02, f"Drawing {n} picture(s)…" if images.warm() else
              "Starting the picture creator (about a minute; the very first time on this laptop 2–3 minutes)")
-    pngs = images.generate([full] * n, aspect, quality=quality,
-                           progress=lambda d, t: progress(d / max(t, 1), f"Picture {min(d + 1, t)} of {t}"))
     names = []
-    for png in pngs:
+    for k in range(n):                     # one at a time: each picture is saved as soon as it is drawn
+        png = images.generate([full], aspect, quality=quality,
+                              progress=lambda d, t, k=k: progress((k + d) / n, f"Picture {min(k + 1 + d, n)} of {n}"))[0]
         name = _stamp(prefix, ".png")
         (_dir("images") / name).write_bytes(png)
         set_picture(name, tags=tags, prompt=prompt.strip()[:600], style=style, aspect=aspect)
