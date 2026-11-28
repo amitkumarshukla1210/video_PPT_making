@@ -79,6 +79,15 @@ def model_class(model):
         return ""
 
 
+def release(pipe, part):
+    """Free a compiled part of the pipeline; it is compiled again (from the cache, seconds) when next needed."""
+    import gc
+    m = getattr(pipe, part, None) if pipe is not None else None
+    if m is not None and getattr(m, "request", None) is not None:
+        m.request = None
+        gc.collect()
+
+
 def _flux2(model, cfg):
     """FLUX.2 klein 4B (OpenVINO int4 export, e.g. rupeshs/flux2-klein-4b-int4-ov). The export is a little newer than
     the installed optimum-intel / diffusers, so a few seams are bridged here:
@@ -86,7 +95,11 @@ def _flux2(model, cfg):
     - text encoder: the export returns the finished prompt embeddings (output "prompt_embeds"), not hidden states,
     - transformer: its img_ids / txt_ids inputs have no batch dimension; optimum's reshape assumes one,
     - text encoder reshape: optimum would fix the prompt length to the tokenizer maximum (131072) and run out of memory,
-    - VAE: its batch-norm statistics live in vae_bn_stats.npz."""
+    - VAE: its batch-norm statistics live in vae_bn_stats.npz.
+    Low memory: the text encoder (about 2 GB) and the transformer (about 5 GB) are never in memory together. The
+    prompt is read first, the text encoder is released, then the transformer draws. On a 16 GB laptop that keeps
+    Windows from swapping to disk (8.5 → 6.5 GB; swapping made a picture take 10 minutes instead of 1–2)."""
+    import gc
     import numpy as np
     import torch
     import types
@@ -114,8 +127,17 @@ def _flux2(model, cfg):
         m.reshape(shapes)
         return m
 
+    holder = {}
+
     def prompt_embeds(text_encoder, tokenizer, prompt, dtype=None, device=None, max_sequence_length=512,
                       hidden_states_layers=None):
+        release(holder.get("pipe"), "transformer")         # one big part in memory at a time
+        try:
+            return _prompt_embeds(text_encoder, tokenizer, prompt, max_sequence_length)
+        finally:
+            release(holder.get("pipe"), "text_encoder")
+
+    def _prompt_embeds(text_encoder, tokenizer, prompt, max_sequence_length):
         prompt = [prompt] if isinstance(prompt, str) else prompt
         ids, masks = [], []
         for p in prompt:
@@ -132,6 +154,7 @@ def _flux2(model, cfg):
     P._reshape_text_encoder = lambda self, m, *a, **kw: m
     P._get_qwen3_prompt_embeds = staticmethod(prompt_embeds)
     pipe = P.from_pretrained(model, tokenizer=tok, ov_config=cfg, compile=False)
+    holder["pipe"] = pipe
     fwd = pipe.transformer.forward
 
     def forward(*a, **kw):
