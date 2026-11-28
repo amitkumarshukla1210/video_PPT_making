@@ -240,10 +240,14 @@ QUALITY = "cinematic film still, photorealistic, detailed face, sharp focus"
 SUBJECT_WORDS = 45
 
 
-def build_prompt(subject, style="none"):
+LONG_SUBJECT_WORDS = 300      # the best model (FLUX.2) reads up to 512 tokens
+
+
+def build_prompt(subject, style="none", long=False):
     words = subject.split()
-    if len(words) > SUBJECT_WORDS:
-        subject = " ".join(words[:SUBJECT_WORDS]).rstrip(",;.")
+    limit = LONG_SUBJECT_WORDS if long else SUBJECT_WORDS
+    if len(words) > limit:
+        subject = " ".join(words[:limit]).rstrip(",;.")
     extra = STYLES.get(style, STYLES["none"])[1]
     parts = [p.strip() for p in extra.split(",") if p.strip()]
     if style in ("none", "cinematic", "photo"):
@@ -261,7 +265,7 @@ def create_images(prompt, style="none", aspect="16:9", n=1, progress=lambda f, m
         raise RuntimeError(images.status()["info"])
     tags = list(tags) if tags is not None else tags_in(prompt)
     prefix = prefix or _name_part(tags)
-    full = build_prompt(expand(prompt.strip()), style)
+    full = build_prompt(expand(prompt.strip()), style, long=images.pick(quality) == "best")
     n = max(1, min(8, int(n or 1)))
     progress(0.02, f"Drawing {n} picture(s)…" if images.warm() else
              "Starting the picture creator (about a minute; the very first time on this laptop 2–3 minutes)")
